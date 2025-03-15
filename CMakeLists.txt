@@ -19,6 +19,20 @@ find_package(cv_bridge REQUIRED)
 find_package(image_transport REQUIRED)
 find_package(OpenCV REQUIRED)
 find_package(std_srvs REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+
+# msgディレクトリ内のメッセージファイルを処理
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/CompressedBinaryImage.msg"
+  DEPENDENCIES std_msgs
+)
+
+# インターフェースのエクスポート
+ament_export_dependencies(rosidl_default_runtime)
+
+# メッセージを使用するノードのための依存関係
+rosidl_get_typesupport_target(cpp_typesupport_target
+  ${PROJECT_NAME} rosidl_typesupport_cpp)
 
 # インクルードディレクトリを指定
 include_directories(include)
@@ -50,7 +64,7 @@ ament_target_dependencies(${PROJECT_NAME}_lib
 
 # ROS2ノード作成
 add_executable(compressor_node src/binary_image_compressor_node.cpp)
-target_link_libraries(compressor_node ${PROJECT_NAME}_lib)
+target_link_libraries(compressor_node ${PROJECT_NAME}_lib "${cpp_typesupport_target}")
 ament_target_dependencies(compressor_node
   rclcpp
   std_msgs
@@ -59,6 +73,28 @@ ament_target_dependencies(compressor_node
   image_transport
   std_srvs
 )
+
+# パブリッシャーノードの追加
+add_executable(compressed_image_publisher src/compressed_image_publisher.cpp)
+target_link_libraries(compressed_image_publisher ${PROJECT_NAME}_lib "${cpp_typesupport_target}")
+ament_target_dependencies(compressed_image_publisher
+  rclcpp
+  std_msgs
+  sensor_msgs
+)
+
+# ビューアーノードの追加
+add_executable(compressed_image_viewer src/compressed_image_viewer.cpp)
+target_link_libraries(compressed_image_viewer ${PROJECT_NAME}_lib "${cpp_typesupport_target}")
+ament_target_dependencies(compressed_image_viewer
+  rclcpp
+  std_msgs
+  sensor_msgs
+  OpenCV
+)
+
+# OpenCVライブラリのリンク
+target_link_libraries(compressed_image_viewer ${OpenCV_LIBRARIES})
 
 target_include_directories(compressor_node PUBLIC
   ${rclcpp_INCLUDE_DIRS}
@@ -83,7 +119,7 @@ install(TARGETS ${PROJECT_NAME}_lib
   RUNTIME DESTINATION bin
 )
 
-install(TARGETS compressor_node
+install(TARGETS compressor_node compressed_image_publisher compressed_image_viewer
   DESTINATION lib/${PROJECT_NAME}
 )
 
