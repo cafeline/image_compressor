@@ -138,11 +138,10 @@ public:
         RCLCPP_INFO(this->get_logger(), "サンプルPGMファイルを作成しました: %s", input_file.c_str());
       }
 
-      // パラメータ値の検証
-      RCLCPP_INFO(this->get_logger(), "デバッグ: パラメータ値の検証");
+      // 不要なデバッグ出力を削除
       if (block_size <= 0 || block_size > 64)
       {
-        RCLCPP_WARN(this->get_logger(), "無効なブロックサイズ: %ld (1-64の範囲で指定してください)", block_size);
+        RCLCPP_WARN(this->get_logger(), "無効なブロックサイズ: %d (1-64の範囲で指定してください)", block_size);
         block_size = 8; // デフォルト値を使用
       }
 

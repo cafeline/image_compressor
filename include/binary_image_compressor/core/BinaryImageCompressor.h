@@ -43,6 +43,14 @@ namespace compressor
     void ensureTempDirectoryExists();
 
   public:
+    // ムーブコンストラクタとムーブ代入演算子の追加
+    BinaryImageCompressor(BinaryImageCompressor&&) noexcept = default;
+    BinaryImageCompressor& operator=(BinaryImageCompressor&&) noexcept = default;
+
+    // コピー操作を禁止（リソース管理の観点から）
+    BinaryImageCompressor(const BinaryImageCompressor&) = delete;
+    BinaryImageCompressor& operator=(const BinaryImageCompressor&) = delete;
+
     // コンストラクタ
     BinaryImageCompressor(
         const std::string &inputFile = "",

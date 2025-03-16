@@ -75,7 +75,7 @@ namespace compressor
 
   bool BinaryImageCompressor::compress()
   {
-    // 削除すべきデバッグ出力
+    // デバッグ出力の削除
     // std::cout << "デバッグ: 圧縮処理開始" << std::endl;
     if (inputPath.empty() || outputPath.empty())
     {

@@ -1,6 +1,7 @@
 #include "binary_image_compressor/core/BlockProcessor.h"
 #include <iostream>
 #include <fstream>
+#include <thread>
 
 namespace compressor
 {
@@ -56,55 +57,80 @@ namespace compressor
     int rowBlocks, colBlocks, totalBlocks;
     calculateBlockCount(header, rowBlocks, colBlocks, totalBlocks);
 
-    // パターンデータファイルの作成
-    std::ofstream patternFile(patternDataPath, std::ios::binary);
-    if (!patternFile)
-    {
-      std::cerr << "パターンデータファイルを作成できません: " << patternDataPath << std::endl;
-      return false;
-    }
-
-    // パターンサイズの計算（バイト単位）
+    // パターンサイズの計算を並列処理前に行い、ラムダ関数でアクセスできるようにする
     int patternBits, patternBytes;
     calculatePatternSize(patternBits, patternBytes);
 
-    // 各ブロックを処理
-    for (int i = 0; i < rowBlocks; ++i)
-    {
-      for (int j = 0; j < colBlocks; ++j)
-      {
-        std::vector<uint8_t> blockPattern(patternBytes, 0);
+    // 並列処理のためのブロッククラスタリング
+    const int numThreads = std::thread::hardware_concurrency();
+    const int blocksPerThread = (rowBlocks + numThreads - 1) / numThreads;
 
-        // ブロック内の各ピクセルを処理
-        for (int r = 0; r < blockRowSize; ++r)
+    std::vector<std::thread> threads;
+    std::vector<std::vector<uint8_t>> threadResults(numThreads);
+
+    for (int t = 0; t < numThreads; ++t) {
+      threads.emplace_back([&, t, patternBytes]() {
+        int startRow = t * blocksPerThread;
+        int endRow = std::min(startRow + blocksPerThread, rowBlocks);
+
+        // このスレッドが処理するブロックのパターンを蓄積
+        std::vector<uint8_t> localPatterns;
+
+        // 各ブロックを処理
+        for (int i = startRow; i < endRow; ++i)
         {
-          int row = i * blockRowSize + r;
-          if (row >= header.height)
-            continue;
-
-          for (int c = 0; c < blockColumnSize; ++c)
+          for (int j = 0; j < colBlocks; ++j)
           {
-            int col = j * blockColumnSize + c;
-            if (col >= header.width)
-              continue;
+            std::vector<uint8_t> blockPattern(patternBytes, 0);
 
-            // ピクセル値を取得（255または0）
-            uint8_t pixelValue = imageData[row * header.width + col];
-
-            // ビットパターンに変換（255→1, 0→0）
-            if (pixelValue == 255)
+            // ブロック内の各ピクセルを処理
+            for (int r = 0; r < blockRowSize; ++r)
             {
-              int bitPos = r * blockColumnSize + c;
-              int bytePos = bitPos / 8;
-              int bitOffset = 7 - (bitPos % 8);
-              blockPattern[bytePos] |= (1 << bitOffset);
+              int row = i * blockRowSize + r;
+              if (row >= header.height)
+                continue;
+
+              for (int c = 0; c < blockColumnSize; ++c)
+              {
+                int col = j * blockColumnSize + c;
+                if (col >= header.width)
+                  continue;
+
+                // ピクセル値を取得（255または0）
+                uint8_t pixelValue = imageData[row * header.width + col];
+
+                // ビットパターンに変換（255→1, 0→0）
+                if (pixelValue == 255)
+                {
+                  int bitPos = r * blockColumnSize + c;
+                  int bytePos = bitPos / 8;
+                  int bitOffset = 7 - (bitPos % 8);
+                  blockPattern[bytePos] |= (1 << bitOffset);
+                }
+              }
             }
+
+            // パターンをファイルに書き込む
+            localPatterns.insert(localPatterns.end(), blockPattern.begin(), blockPattern.end());
           }
         }
 
-        // パターンをファイルに書き込む
-        patternFile.write(reinterpret_cast<char *>(blockPattern.data()), blockPattern.size());
+        // 結果を保存
+        threadResults[t] = std::move(localPatterns);
+      });
+    }
+
+    // すべてのスレッドが完了するのを待機
+    for (auto& thread : threads) {
+      if (thread.joinable()) {
+        thread.join();
       }
+    }
+
+    // 結果を統合
+    std::ofstream patternFile(patternDataPath, std::ios::binary);
+    for (const auto& result : threadResults) {
+      patternFile.write(reinterpret_cast<const char*>(result.data()), result.size());
     }
 
     patternFile.close();
@@ -137,7 +163,7 @@ namespace compressor
     {
       for (int j = 0; j < colBlocks; ++j)
       {
-        if (blockIndex >= indices.size())
+        if (blockIndex >= static_cast<int>(indices.size()))
         {
           std::cerr << "インデックスの範囲外エラー" << std::endl;
           return false;
@@ -170,7 +196,7 @@ namespace compressor
             int bytePos = bitPos / 8;
             int bitOffset = 7 - (bitPos % 8);
 
-            if (bytePos < patternData.size() &&
+            if (static_cast<size_t>(bytePos) < patternData.size() &&
                 (patternData[bytePos] & (1 << bitOffset)))
             {
               imageData[row * header.width + col] = 255;
