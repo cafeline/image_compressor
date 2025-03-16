@@ -27,60 +27,6 @@ public:
     RCLCPP_INFO(this->get_logger(), "バイナリー画像圧縮ノードが初期化されました");
   }
 
-  void processCommandLineArgs(int argc, char **argv)
-  {
-    // コマンドライン引数からファイルパスを取得
-    if (argc >= 3)
-    {
-      // ROS 2システム引数かどうかチェック
-      if (argv[1][0] == '-' || argv[2][0] == '-')
-      {
-        RCLCPP_INFO(this->get_logger(), "ROS 2システム引数が検出されました。パラメータ処理をスキップします。");
-        return;
-      }
-
-      std::string input_file = argv[1];
-      std::string output_file = argv[2];
-
-      // パラメータの設定
-      this->set_parameter(rclcpp::Parameter("input_file", input_file));
-      this->set_parameter(rclcpp::Parameter("output_file", output_file));
-
-      // 任意のブロックサイズとしきい値
-      if (argc >= 4)
-      {
-        try
-        {
-          int block_size = std::stoi(argv[3]);
-          this->set_parameter(rclcpp::Parameter("block_size", block_size));
-        }
-        catch (const std::exception &e)
-        {
-          RCLCPP_WARN(this->get_logger(), "ブロックサイズの変換に失敗しました: %s. デフォルト値を使用します。", e.what());
-        }
-      }
-
-      if (argc >= 5)
-      {
-        int threshold = std::stoi(argv[4]);
-        this->set_parameter(rclcpp::Parameter("threshold", threshold));
-      }
-
-      if (argc >= 6)
-      {
-        std::string mode = argv[5];
-        this->set_parameter(rclcpp::Parameter("mode", mode));
-      }
-
-      // 画像処理を実行
-      processImageFromParams();
-    }
-    else
-    {
-      RCLCPP_INFO(this->get_logger(), "使用方法: ros2 run binary_image_compressor compressor_node input.pgm output.pgm [block_size] [threshold] [mode]");
-    }
-  }
-
   void processImageFromParams()
   {
     try
@@ -133,9 +79,6 @@ public:
       if (strncmp(header_buffer, "P5", 2) != 0)
       {
         RCLCPP_ERROR(this->get_logger(), "ファイルはPGM形式ではありません");
-        // サンプルPGMファイルの作成
-        createSamplePGM(input_file);
-        RCLCPP_INFO(this->get_logger(), "サンプルPGMファイルを作成しました: %s", input_file.c_str());
       }
 
       // 不要なデバッグ出力を削除
@@ -229,26 +172,6 @@ public:
     }
   }
 
-  // サンプルPGMファイルを作成する関数
-  void createSamplePGM(const std::string &filename)
-  {
-    std::ofstream file(filename, std::ios::binary);
-    if (!file)
-    {
-      RCLCPP_ERROR(this->get_logger(), "サンプルファイルを作成できません");
-      return;
-    }
-
-    // ヘッダー情報
-    file << "P5\n10 10\n255\n";
-
-    // 10x10の画像データ (すべて0で黒い画像)
-    std::vector<char> data(100, 0);
-    file.write(data.data(), data.size());
-
-    file.close();
-  }
-
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr process_service_;
 };
 
@@ -272,20 +195,11 @@ int main(int argc, char **argv)
     RCLCPP_ERROR(node->get_logger(), "パラメータ確認中のエラー: %s", e.what());
   }
 
-  // 特定のパターンのコマンドライン引数があるときのみ処理（ROS 2システム引数を無視）
-  // 最初の引数がファイルパスかどうかで判断
-  if (argc > 1 && argv[1][0] != '-')
+  // パラメータが設定されていれば自動的に処理実行
+  if (!node->get_parameter("input_file").as_string().empty() &&
+      !node->get_parameter("output_file").as_string().empty())
   {
-    node->processCommandLineArgs(argc, argv);
-  }
-  else
-  {
-    // パラメータが設定されていれば自動的に処理実行
-    if (!node->get_parameter("input_file").as_string().empty() &&
-        !node->get_parameter("output_file").as_string().empty())
-    {
-      node->processImageFromParams();
-    }
+    node->processImageFromParams();
   }
 
   rclcpp::spin(node);
