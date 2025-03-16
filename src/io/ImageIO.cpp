@@ -38,11 +38,9 @@ namespace compressor
         std::getline(inputFile, line);
       }
 
-      std::cout << "デバッグ: 次の行を解析します" << std::endl;
       // 幅と高さの読み込み
       int width, height;
       inputFile >> width >> height;
-      std::cout << "デバッグ: 幅=" << width << ", 高さ=" << height << std::endl;
 
       if (width <= 0 || height <= 0)
       {
@@ -53,7 +51,6 @@ namespace compressor
       // 最大輝度値の読み込み
       int maxval;
       inputFile >> maxval;
-      std::cout << "デバッグ: 最大輝度値=" << maxval << std::endl;
 
       if (maxval <= 0 || maxval > 255)
       {

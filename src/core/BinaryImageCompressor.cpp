@@ -75,27 +75,28 @@ namespace compressor
 
   bool BinaryImageCompressor::compress()
   {
-    std::cout << "デバッグ: 圧縮処理開始" << std::endl;
+    // 削除すべきデバッグ出力
+    // std::cout << "デバッグ: 圧縮処理開始" << std::endl;
     if (inputPath.empty() || outputPath.empty())
     {
       std::cerr << "入力または出力パスが設定されていません" << std::endl;
       return false;
     }
 
-    std::cout << "デバッグ: ヘッダー解析開始" << std::endl;
+    // std::cout << "デバッグ: ヘッダー解析開始" << std::endl;
     // ヘッダー解析
     if (!ImageIO::parseHeader(inputPath, header, headerData))
     {
       std::cerr << "ヘッダー解析に失敗しました" << std::endl;
       return false;
     }
-    std::cout << "デバッグ: ヘッダー解析完了" << std::endl;
+    // std::cout << "デバッグ: ヘッダー解析完了" << std::endl;
 
     // 一時ファイルパスの確保
     initializeTempPaths();
     ensureTempDirectoryExists();
 
-    std::cout << "デバッグ: 画像の2値化開始" << std::endl;
+    // std::cout << "デバッグ: 画像の2値化開始" << std::endl;
     // 画像の2値化
     std::string binarizedPath = "temp/binarized.pgm";
     if (!ImageIO::binarizeImage(inputPath, binarizedPath, header, headerData, threshold))
