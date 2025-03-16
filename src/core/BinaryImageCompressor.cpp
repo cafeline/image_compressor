@@ -1,4 +1,4 @@
-#include "binary_image_compressor/compressor//BinaryImageCompressor.h"
+#include "binary_image_compressor/core/BinaryImageCompressor.h"
 #include <iostream>
 #include <filesystem>
 

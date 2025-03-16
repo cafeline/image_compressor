@@ -1,5 +1,5 @@
 #include <rclcpp/rclcpp.hpp>
-#include "binary_image_compressor/compressor/BinaryImageCompressor.h"
+#include "binary_image_compressor/core/BinaryImageCompressor.h"
 #include <memory>
 #include <string>
 #include <std_srvs/srv/trigger.hpp>

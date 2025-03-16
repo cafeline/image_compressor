@@ -1,4 +1,4 @@
-#include "binary_image_compressor/compressor//ImageIO.h"
+#include "binary_image_compressor/io/ImageIO.h"
 #include <iostream>
 #include <fstream>
 

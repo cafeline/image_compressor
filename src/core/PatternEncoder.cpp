@@ -1,4 +1,4 @@
-#include "binary_image_compressor/compressor//PatternEncoder.h"
+#include "binary_image_compressor/core/PatternEncoder.h"
 #include <iostream>
 #include <fstream>
 

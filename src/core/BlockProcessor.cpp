@@ -1,4 +1,4 @@
-#include "binary_image_compressor/compressor//BlockProcessor.h"
+#include "binary_image_compressor/core/BlockProcessor.h"
 #include <iostream>
 #include <fstream>
 

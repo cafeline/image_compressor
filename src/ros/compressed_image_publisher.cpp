@@ -5,7 +5,7 @@
 #include <fstream>
 #include "rclcpp/rclcpp.hpp"
 #include "binary_image_compressor/msg/compressed_binary_image.hpp"
-#include "binary_image_compressor/compressor/BinaryImageCompressor.h"
+#include "binary_image_compressor/core/BinaryImageCompressor.h"
 
 using namespace std::chrono_literals;
 namespace fs = std::filesystem;

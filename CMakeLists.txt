@@ -39,13 +39,13 @@ include_directories(include)
 
 # ライブラリのソースファイル
 set(LIB_SOURCES
-  src/BinaryImageCompressor.cpp
-  src/BlockProcessor.cpp
-  src/DictionaryBuilder.cpp
-  src/PatternEncoder.cpp
-  src/ImageIO.cpp
-  src/BinaryPattern.cpp
-  src/BlockSizeResult.cpp
+  src/core/BinaryImageCompressor.cpp
+  src/core/BlockProcessor.cpp
+  src/core/DictionaryBuilder.cpp
+  src/core/PatternEncoder.cpp
+  src/io/ImageIO.cpp
+  src/model/BinaryPattern.cpp
+  src/model/BlockSizeResult.cpp
 )
 
 # ライブラリを作成
@@ -62,8 +62,9 @@ ament_target_dependencies(${PROJECT_NAME}_lib
   image_transport
 )
 
-# ROS2ノード作成
-add_executable(compressor_node src/binary_image_compressor_node.cpp)
+# ROS2ノード作成 - 正しいパスを指定
+add_executable(compressor_node
+  src/ros/binary_image_compressor_node.cpp)
 target_link_libraries(compressor_node ${PROJECT_NAME}_lib "${cpp_typesupport_target}")
 ament_target_dependencies(compressor_node
   rclcpp
@@ -74,8 +75,9 @@ ament_target_dependencies(compressor_node
   std_srvs
 )
 
-# パブリッシャーノードの追加
-add_executable(compressed_image_publisher src/compressed_image_publisher.cpp)
+# パブリッシャーノードとビューアーノード - 既存のファイルを使用
+add_executable(compressed_image_publisher
+  src/ros/compressed_image_publisher.cpp)
 target_link_libraries(compressed_image_publisher ${PROJECT_NAME}_lib "${cpp_typesupport_target}")
 ament_target_dependencies(compressed_image_publisher
   rclcpp
@@ -83,8 +85,8 @@ ament_target_dependencies(compressed_image_publisher
   sensor_msgs
 )
 
-# ビューアーノードの追加
-add_executable(compressed_image_viewer src/compressed_image_viewer.cpp)
+add_executable(compressed_image_viewer
+  src/ros/compressed_image_viewer.cpp)
 target_link_libraries(compressed_image_viewer ${PROJECT_NAME}_lib "${cpp_typesupport_target}")
 ament_target_dependencies(compressed_image_viewer
   rclcpp

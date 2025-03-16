@@ -4,7 +4,7 @@
 #include <opencv2/opencv.hpp>
 #include "rclcpp/rclcpp.hpp"
 #include "binary_image_compressor/msg/compressed_binary_image.hpp"
-#include "binary_image_compressor/compressor/BlockProcessor.h"
+#include "binary_image_compressor/core/BlockProcessor.h"
 #include "binary_image_compressor/model/ImageHeader.h"
 
 class CompressedImageViewer : public rclcpp::Node

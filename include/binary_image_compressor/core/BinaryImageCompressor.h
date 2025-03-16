@@ -6,10 +6,10 @@
 #include <memory>
 #include "binary_image_compressor/model/ImageHeader.h"
 #include "binary_image_compressor/model/BlockSizeResult.h"
-#include "ImageIO.h"
-#include "BlockProcessor.h"
-#include "DictionaryBuilder.h"
-#include "PatternEncoder.h"
+#include "binary_image_compressor/io/ImageIO.h"
+#include "binary_image_compressor/core/BlockProcessor.h"
+#include "binary_image_compressor/core/DictionaryBuilder.h"
+#include "binary_image_compressor/core/PatternEncoder.h"
 
 namespace compressor
 {

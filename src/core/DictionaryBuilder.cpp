@@ -1,4 +1,4 @@
-#include "binary_image_compressor/compressor//DictionaryBuilder.h"
+#include "binary_image_compressor/core/DictionaryBuilder.h"
 #include <iostream>
 #include <fstream>
 #include <algorithm>
