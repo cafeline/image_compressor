@@ -10,7 +10,23 @@ namespace compressor
 {
   class CompressedImagePublisher : public rclcpp::Node
   {
-    // クラスの内容は省略
+  public:
+    // コンストラクタ
+    CompressedImagePublisher();
+
+    // 画像を一度だけ圧縮・パブリッシュするメソッド
+    void publishCompressedImageOnce();
+
+  private:
+    // 圧縮画像メッセージを作成するヘルパーメソッド
+    binary_image_compressor::msg::CompressedBinaryImage
+    createCompressedImageMessage(const BinaryImageCompressor &compressor);
+
+    // パブリッシャー
+    rclcpp::Publisher<binary_image_compressor::msg::CompressedBinaryImage>::SharedPtr compressed_pub_;
+
+    // タイマー
+    rclcpp::TimerBase::SharedPtr timer_;
   };
 } // namespace compressor
 
