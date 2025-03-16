@@ -62,18 +62,6 @@ ament_target_dependencies(${PROJECT_NAME}_lib
   image_transport
 )
 
-# ROS2ノード作成 - 正しいパスを指定
-add_executable(compressor_node
-  src/ros/binary_image_compressor_node.cpp)
-target_link_libraries(compressor_node ${PROJECT_NAME}_lib "${cpp_typesupport_target}")
-ament_target_dependencies(compressor_node
-  rclcpp
-  std_msgs
-  sensor_msgs
-  cv_bridge
-  image_transport
-  std_srvs
-)
 
 # パブリッシャーノードとビューアーノード - 既存のファイルを使用
 add_executable(compressed_image_publisher
@@ -98,22 +86,6 @@ ament_target_dependencies(compressed_image_viewer
 # OpenCVライブラリのリンク
 target_link_libraries(compressed_image_viewer ${OpenCV_LIBRARIES})
 
-target_include_directories(compressor_node PUBLIC
-  ${rclcpp_INCLUDE_DIRS}
-  ${sensor_msgs_INCLUDE_DIRS}
-  ${cv_bridge_INCLUDE_DIRS}
-  ${OpenCV_INCLUDE_DIRS}
-  # ... その他のインクルードディレクトリ
-)
-
-target_link_libraries(compressor_node
-  ${rclcpp_LIBRARIES}
-  ${sensor_msgs_LIBRARIES}
-  ${cv_bridge_LIBRARIES}
-  ${OpenCV_LIBRARIES}
-  # ... その他のライブラリ
-)
-
 # インストール設定
 install(TARGETS ${PROJECT_NAME}_lib
   ARCHIVE DESTINATION lib
@@ -121,7 +93,7 @@ install(TARGETS ${PROJECT_NAME}_lib
   RUNTIME DESTINATION bin
 )
 
-install(TARGETS compressor_node compressed_image_publisher compressed_image_viewer
+install(TARGETS compressed_image_publisher compressed_image_viewer
   DESTINATION lib/${PROJECT_NAME}
 )
 
