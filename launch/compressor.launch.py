@@ -5,7 +5,7 @@ import os
 
 def generate_launch_description():
     package_dir = get_package_share_directory('binary_image_compressor')
-    param_file = os.path.join(package_dir, 'config', 'publisher_params.yaml')
+    param_file = os.path.join(package_dir, 'config', 'compressor_params.yaml')
 
     if not os.path.exists(param_file):
         print(f"警告: パラメータファイルが見つかりません: {param_file}")
