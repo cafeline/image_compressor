@@ -1,0 +1,6 @@
+image: mile1_2_50.pgm
+resolution: 0.2
+origin: [-76.78446197509766, -140.8116455078125, 0.0]
+occupied_thresh: 0.65
+free_thresh: 0.2
+negate: 0
