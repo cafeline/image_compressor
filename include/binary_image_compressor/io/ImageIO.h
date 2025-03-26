@@ -3,8 +3,11 @@
 
 #include <string>
 #include <vector>
+#include <cstdint>
+#include <filesystem>
 #include "binary_image_compressor/model/ImageHeader.h"
 
+namespace fs = std::filesystem;
 namespace compressor
 {
 
@@ -42,6 +45,12 @@ namespace compressor
     static bool saveDecompressedImage(const std::string &outputPath,
                                       const std::vector<char> &headerData,
                                       const std::vector<uint8_t> &imageData);
+
+    // 入力ファイルのサイズを取得（YAMLの場合は参照先PGMファイルのサイズ）
+    static uintmax_t getInputFileSize(const std::string &filePath);
+
+    // YAMLファイルから参照先のPGMファイルパスを取得
+    static std::string getPgmPathFromYaml(const std::string &yamlPath);
   };
 
 } // namespace compressor

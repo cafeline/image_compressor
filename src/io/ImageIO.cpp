@@ -31,19 +31,12 @@ namespace compressor
   {
     try
     {
-      YAML::Node config = YAML::LoadFile(filePath);
-
-      // YAMLファイルからPGMファイルのパスを取得
-      std::string pgmFile = config["image"].as<std::string>();
-      std::cout << "YAMLファイルから読み込んだPGMファイル: " << pgmFile << std::endl;
-
-      // PGMファイルの絶対パスを構築
-      fs::path yamlPath(filePath);
-      fs::path pgmPath = yamlPath.parent_path() / pgmFile;
-      std::cout << "PGMファイルの絶対パス: " << pgmPath.string() << std::endl;
+      // YAMLファイルから参照先のPGMファイルパスを取得
+      std::string pgmPath = getPgmPathFromYaml(filePath);
+      std::cout << "PGMファイルの絶対パス: " << pgmPath << std::endl;
 
       // PGMファイルのヘッダーを解析
-      return parsePgmHeader(pgmPath.string(), header, headerData);
+      return parsePgmHeader(pgmPath, header, headerData);
     }
     catch (const std::exception &e)
     {
@@ -177,21 +170,16 @@ namespace compressor
       // YAMLファイルの場合は、参照されているPGMファイルを読み込む
       try
       {
-        YAML::Node config = YAML::LoadFile(inputPath);
-        std::string pgmFile = config["image"].as<std::string>();
-        std::cout << "YAMLファイルから読み込んだPGMファイル: " << pgmFile << std::endl;
-
-        // PGMファイルの絶対パスを構築
-        fs::path yamlPath(inputPath);
-        fs::path pgmPath = yamlPath.parent_path() / pgmFile;
-        std::cout << "PGMファイルの絶対パス: " << pgmPath.string() << std::endl;
+        // YAMLファイルから参照先のPGMファイルパスを取得
+        std::string pgmPath = getPgmPathFromYaml(inputPath);
+        std::cout << "PGMファイルの絶対パス: " << pgmPath << std::endl;
 
         // PGMファイルを読み込む
         input.close();
-        input.open(pgmPath.string(), std::ios::binary);
+        input.open(pgmPath, std::ios::binary);
         if (!input)
         {
-          std::cerr << "PGMファイルを開けません: " << pgmPath.string() << std::endl;
+          std::cerr << "PGMファイルを開けません: " << pgmPath << std::endl;
           return false;
         }
       }
@@ -332,22 +320,15 @@ namespace compressor
   {
     try
     {
-      YAML::Node config = YAML::LoadFile(filePath);
-
-      // YAMLファイルからPGMファイルのパスを取得
-      std::string pgmFile = config["image"].as<std::string>();
-      std::cout << "YAMLファイルから読み込んだPGMファイル: " << pgmFile << std::endl;
-
-      // PGMファイルの絶対パスを構築
-      fs::path yamlPath(filePath);
-      fs::path pgmPath = yamlPath.parent_path() / pgmFile;
-      std::cout << "PGMファイルの絶対パス: " << pgmPath.string() << std::endl;
+      // YAMLファイルから参照先のPGMファイルパスを取得
+      std::string pgmPath = getPgmPathFromYaml(filePath);
+      std::cout << "PGMファイルの絶対パス: " << pgmPath << std::endl;
 
       // PGMファイルを読み込む
-      std::ifstream input(pgmPath.string(), std::ios::binary);
+      std::ifstream input(pgmPath, std::ios::binary);
       if (!input)
       {
-        std::cerr << "PGMファイルを開けません: " << pgmPath.string() << std::endl;
+        std::cerr << "PGMファイルを開けません: " << pgmPath << std::endl;
         return false;
       }
 
@@ -439,6 +420,72 @@ namespace compressor
     std::cout << "復元画像の保存完了: " << outputPath << std::endl;
 
     return true;
+  }
+
+  // 入力ファイルのサイズを取得（YAMLの場合は参照先PGMファイルのサイズ）
+  uintmax_t ImageIO::getInputFileSize(const std::string &filePath)
+  {
+    std::error_code ec;
+    uintmax_t fileSize = 0;
+
+    // 入力ファイルがYAMLの場合、参照先のPGMファイルのサイズを取得
+    std::string extension = filePath.substr(filePath.find_last_of(".") + 1);
+    if (extension == "yaml" || extension == "yml")
+    {
+      try
+      {
+        // YAMLファイルから参照先のPGMファイルパスを取得
+        std::string pgmPath = getPgmPathFromYaml(filePath);
+
+        // PGMファイルのサイズを取得
+        fileSize = fs::file_size(pgmPath, ec);
+        if (ec)
+        {
+          std::cerr << "PGMファイルのサイズを取得できません: " << pgmPath << std::endl;
+          return 0;
+        }
+        std::cout << "参照先PGMファイル: " << pgmPath << ", サイズ: " << fileSize << " バイト" << std::endl;
+      }
+      catch (const std::exception &e)
+      {
+        std::cerr << "YAMLファイルの解析エラー: " << e.what() << std::endl;
+        return 0;
+      }
+    }
+    else
+    {
+      // 通常のファイルの場合は直接そのサイズを取得
+      fileSize = fs::file_size(filePath, ec);
+      if (ec)
+      {
+        std::cerr << "入力ファイルのサイズを取得できません: " << filePath << std::endl;
+        return 0;
+      }
+    }
+
+    return fileSize;
+  }
+
+  // YAMLファイルから参照先のPGMファイルパスを取得
+  std::string ImageIO::getPgmPathFromYaml(const std::string &yamlPath)
+  {
+    try
+    {
+      YAML::Node config = YAML::LoadFile(yamlPath);
+      std::string pgmFile = config["image"].as<std::string>();
+      std::cout << "YAMLファイルから読み込んだPGMファイル: " << pgmFile << std::endl;
+
+      // PGMファイルの絶対パスを構築
+      fs::path yaml(yamlPath);
+      fs::path pgm = yaml.parent_path() / pgmFile;
+
+      return pgm.string();
+    }
+    catch (const std::exception &e)
+    {
+      std::cerr << "YAMLファイルの解析エラー: " << e.what() << std::endl;
+      throw; // 例外を再スロー
+    }
   }
 
 } // namespace compressor

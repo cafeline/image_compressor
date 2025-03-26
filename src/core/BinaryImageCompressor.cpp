@@ -1,4 +1,5 @@
 #include "binary_image_compressor/core/BinaryImageCompressor.h"
+#include "binary_image_compressor/io/ImageIO.h"
 #include <iostream>
 #include <filesystem>
 #include <yaml-cpp/yaml.h>
@@ -264,46 +265,12 @@ namespace compressor
     }
 
     std::error_code ec;
-    uintmax_t rawSize = 0;
 
-    // 入力ファイルがYAMLの場合、参照先のPGMファイルのサイズを取得
-    std::string extension = inputPath.substr(inputPath.find_last_of(".") + 1);
-    if (extension == "yaml" || extension == "yml")
+    // 入力ファイルのサイズを取得（YAMLの場合は参照先PGMファイルのサイズ）
+    uintmax_t rawSize = ImageIO::getInputFileSize(inputPath);
+    if (rawSize == 0)
     {
-      try
-      {
-        // YAMLファイルから参照先のPGMファイルパスを取得
-        YAML::Node config = YAML::LoadFile(inputPath);
-        std::string pgmFile = config["image"].as<std::string>();
-
-        // PGMファイルの絶対パスを構築
-        fs::path yamlPath(inputPath);
-        fs::path pgmPath = yamlPath.parent_path() / pgmFile;
-
-        // PGMファイルのサイズを取得
-        rawSize = fs::file_size(pgmPath, ec);
-        if (ec)
-        {
-          std::cerr << "PGMファイルのサイズを取得できません: " << pgmPath.string() << std::endl;
-          return -1.0f;
-        }
-        std::cout << "参照先PGMファイル: " << pgmPath.string() << ", サイズ: " << rawSize << " バイト" << std::endl;
-      }
-      catch (const std::exception &e)
-      {
-        std::cerr << "YAMLファイルの解析エラー: " << e.what() << std::endl;
-        return -1.0f;
-      }
-    }
-    else
-    {
-      // 通常のファイルの場合は直接そのサイズを取得
-      rawSize = fs::file_size(inputPath, ec);
-      if (ec)
-      {
-        std::cerr << "入力ファイルのサイズを取得できません: " << inputPath << std::endl;
-        return -1.0f;
-      }
+      return -1.0f;
     }
 
     uintmax_t dictSize = fs::file_size(dictionaryPath, ec);
@@ -338,46 +305,13 @@ namespace compressor
     std::cout << "圧縮情報:" << std::endl;
 
     std::error_code ec;
-    uintmax_t rawSize = 0;
 
-    // 入力ファイルがYAMLの場合、参照先のPGMファイルのサイズを取得
-    std::string extension = inputPath.substr(inputPath.find_last_of(".") + 1);
-    if (extension == "yaml" || extension == "yml")
+    // 入力ファイルのサイズを取得（YAMLの場合は参照先PGMファイルのサイズ）
+    uintmax_t rawSize = ImageIO::getInputFileSize(inputPath);
+    if (rawSize == 0)
     {
-      try
-      {
-        // YAMLファイルから参照先のPGMファイルパスを取得
-        YAML::Node config = YAML::LoadFile(inputPath);
-        std::string pgmFile = config["image"].as<std::string>();
-
-        // PGMファイルの絶対パスを構築
-        fs::path yamlPath(inputPath);
-        fs::path pgmPath = yamlPath.parent_path() / pgmFile;
-
-        // PGMファイルのサイズを取得
-        rawSize = fs::file_size(pgmPath, ec);
-        if (ec)
-        {
-          std::cerr << "PGMファイルのサイズを取得できません: " << pgmPath.string() << std::endl;
-          return;
-        }
-        std::cout << "参照先PGMファイル: " << pgmPath.string() << ", サイズ: " << rawSize << " バイト" << std::endl;
-      }
-      catch (const std::exception &e)
-      {
-        std::cerr << "YAMLファイルの解析エラー: " << e.what() << std::endl;
-        return;
-      }
-    }
-    else
-    {
-      // 通常のファイルの場合は直接そのサイズを取得
-      rawSize = fs::file_size(inputPath, ec);
-      if (ec)
-      {
-        std::cerr << "入力ファイルのサイズを取得できません: " << inputPath << std::endl;
-        return;
-      }
+      std::cerr << "入力ファイルのサイズを取得できません" << std::endl;
+      return;
     }
 
     uintmax_t dictSize = fs::file_size(dictionaryPath, ec);
