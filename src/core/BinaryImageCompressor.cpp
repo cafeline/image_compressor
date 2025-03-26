@@ -75,28 +75,23 @@ namespace compressor
 
   bool BinaryImageCompressor::compress()
   {
-    // デバッグ出力の削除
-    // std::cout << "デバッグ: 圧縮処理開始" << std::endl;
     if (inputPath.empty() || outputPath.empty())
     {
       std::cerr << "入力または出力パスが設定されていません" << std::endl;
       return false;
     }
 
-    // std::cout << "デバッグ: ヘッダー解析開始" << std::endl;
     // ヘッダー解析
     if (!ImageIO::parseHeader(inputPath, header, headerData))
     {
       std::cerr << "ヘッダー解析に失敗しました" << std::endl;
       return false;
     }
-    // std::cout << "デバッグ: ヘッダー解析完了" << std::endl;
 
     // 一時ファイルパスの確保
     initializeTempPaths();
     ensureTempDirectoryExists();
 
-    // std::cout << "デバッグ: 画像の2値化開始" << std::endl;
     // 画像の2値化
     std::string binarizedPath = "temp/binarized.pgm";
     if (!ImageIO::binarizeImage(inputPath, binarizedPath, header, headerData, threshold))
@@ -163,8 +158,7 @@ namespace compressor
     std::vector<uint16_t> indices;
     std::vector<std::vector<uint8_t>> patterns;
 
-    if (!patternEncoder->decodePatterns(indexDataPath, dictionaryPath,
-                                        indices, patterns, totalBlocks, patternBytes))
+    if (!patternEncoder->decodePatterns(indexDataPath, dictionaryPath, indices, patterns, totalBlocks, patternBytes))
     {
       std::cerr << "パターンのデコードに失敗しました" << std::endl;
       return false;

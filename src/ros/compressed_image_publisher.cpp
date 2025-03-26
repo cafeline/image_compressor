@@ -81,8 +81,7 @@ namespace compressor
     RCLCPP_INFO(this->get_logger(), "圧縮画像のパブリッシュが完了しました - プログラムを終了するには Ctrl+C を押してください");
   }
 
-  binary_image_compressor::msg::CompressedBinaryImage
-  CompressedImagePublisher::createCompressedImageMessage(const BinaryImageCompressor &compressor)
+  binary_image_compressor::msg::CompressedBinaryImage CompressedImagePublisher::createCompressedImageMessage(const BinaryImageCompressor &compressor)
   {
     // メッセージの作成
     auto message = binary_image_compressor::msg::CompressedBinaryImage();
@@ -152,8 +151,7 @@ namespace compressor
 
     // インデックスデータの読み込み
     message.block_indices.resize(total_blocks);
-    index_file.read(reinterpret_cast<char *>(message.block_indices.data()),
-                    total_blocks * sizeof(uint16_t));
+    index_file.read(reinterpret_cast<char *>(message.block_indices.data()), total_blocks * sizeof(uint16_t));
 
     return message;
   }
