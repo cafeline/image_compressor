@@ -1,7 +1,7 @@
 /**:
   ros__parameters:
-    input_file: "/home/ryo/vq_ws/src/binary_image_compressor/map/tsukuba_9_23_1.pgm"
+    input_file: "/home/ryo/vq_ws/src/binary_image_compressor/map/mile1_2_50.yaml"
     output_file: "/home/ryo/vq_ws/src/binary_image_compressor/map/output.pgm"
-    block_size: 8
-    threshold: 128
+    block_size: 20
+    threshold: 50
     mode: "compress"  # "compress" または "decompress"

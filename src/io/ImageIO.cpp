@@ -1,13 +1,60 @@
 #include "binary_image_compressor/io/ImageIO.h"
 #include <iostream>
 #include <fstream>
+#include <yaml-cpp/yaml.h>
+#include <filesystem>
+#include <sstream>
 
+namespace fs = std::filesystem;
 namespace compressor
 {
 
   bool ImageIO::parseHeader(const std::string &filePath,
                             ImageHeader &header,
                             std::vector<char> &headerData)
+  {
+    // ファイル拡張子の確認
+    std::string extension = filePath.substr(filePath.find_last_of(".") + 1);
+    if (extension == "yaml" || extension == "yml")
+    {
+      return parseYamlHeader(filePath, header, headerData);
+    }
+    else
+    {
+      return parsePgmHeader(filePath, header, headerData);
+    }
+  }
+
+  bool ImageIO::parseYamlHeader(const std::string &filePath,
+                                ImageHeader &header,
+                                std::vector<char> &headerData)
+  {
+    try
+    {
+      YAML::Node config = YAML::LoadFile(filePath);
+
+      // YAMLファイルからPGMファイルのパスを取得
+      std::string pgmFile = config["image"].as<std::string>();
+      std::cout << "YAMLファイルから読み込んだPGMファイル: " << pgmFile << std::endl;
+
+      // PGMファイルの絶対パスを構築
+      fs::path yamlPath(filePath);
+      fs::path pgmPath = yamlPath.parent_path() / pgmFile;
+      std::cout << "PGMファイルの絶対パス: " << pgmPath.string() << std::endl;
+
+      // PGMファイルのヘッダーを解析
+      return parsePgmHeader(pgmPath.string(), header, headerData);
+    }
+    catch (const std::exception &e)
+    {
+      std::cerr << "YAMLファイルの解析エラー: " << e.what() << std::endl;
+      return false;
+    }
+  }
+
+  bool ImageIO::parsePgmHeader(const std::string &filePath,
+                               ImageHeader &header,
+                               std::vector<char> &headerData)
   {
     std::ifstream inputFile(filePath, std::ios::binary);
     if (!inputFile)
@@ -21,14 +68,18 @@ namespace compressor
     headerData.clear();
     char c;
 
-    try {
+    try
+    {
       // マジックナンバーの確認（P5またはP2）
       inputFile >> line;
+      std::cout << "PGMマジックナンバー: " << line << std::endl;
       if (line != "P5" && line != "P2")
       {
         std::cerr << "無効なPGMファイル形式: " << line << std::endl;
         return false;
       }
+      header.isPGMBinary = (line == "P5");
+
       // 改行文字を取得
       inputFile.get(c);
 
@@ -36,11 +87,13 @@ namespace compressor
       while (inputFile.peek() == '#')
       {
         std::getline(inputFile, line);
+        std::cout << "PGMコメント行: " << line << std::endl;
       }
 
       // 幅と高さの読み込み
       int width, height;
       inputFile >> width >> height;
+      std::cout << "PGM画像サイズ: " << width << "x" << height << std::endl;
 
       if (width <= 0 || height <= 0)
       {
@@ -51,6 +104,7 @@ namespace compressor
       // 最大輝度値の読み込み
       int maxval;
       inputFile >> maxval;
+      std::cout << "PGM最大輝度値: " << maxval << std::endl;
 
       if (maxval <= 0 || maxval > 255)
       {
@@ -61,18 +115,33 @@ namespace compressor
       // ヘッダー情報の設定
       header.width = width;
       header.height = height;
-      // ヘッダーの開始位置を設定
+
+      // ヘッダーの終わりの位置を記録
       std::streampos headerEnd = inputFile.tellg();
       inputFile.get(c); // データ部分の直前の1バイトを読み込む
       header.start = static_cast<size_t>(headerEnd) + 1;
+      std::cout << "PGMヘッダーサイズ: " << header.start << " バイト" << std::endl;
 
       // ここまでの内容をヘッダーデータとして保存
       inputFile.seekg(0, std::ios::beg);
       headerData.resize(static_cast<size_t>(headerEnd) + 1);
       inputFile.read(headerData.data(), headerData.size());
 
+      // P2形式の場合、P5形式のヘッダーを生成
+      if (!header.isPGMBinary)
+      {
+        std::string p5Header = "P5\n";
+        p5Header += std::to_string(width) + " " + std::to_string(height) + "\n";
+        p5Header += std::to_string(maxval) + "\n";
+        headerData.assign(p5Header.begin(), p5Header.end());
+        header.start = headerData.size();
+        std::cout << "ASCII PGMをバイナリPGMに変換するためのヘッダーを生成: " << header.start << " バイト" << std::endl;
+      }
+
       return true;
-    } catch (const std::exception& e) {
+    }
+    catch (const std::exception &e)
+    {
       std::cerr << "PGMヘッダー解析エラー: " << e.what() << std::endl;
       return false;
     }
@@ -86,6 +155,12 @@ namespace compressor
   {
     std::cout << "画像の2値化を実行中..." << std::endl;
 
+    // 入力パスを分析
+    std::cout << "入力ファイル: " << inputPath << std::endl;
+    std::cout << "出力ファイル: " << outputPath << std::endl;
+    std::cout << "画像サイズ: " << header.width << "x" << header.height << std::endl;
+    std::cout << "2値化閾値: " << threshold << std::endl;
+
     std::ifstream input(inputPath, std::ios::binary);
     if (!input)
     {
@@ -93,23 +168,143 @@ namespace compressor
       return false;
     }
 
-    // ヘッダー部分をスキップ
-    input.seekg(header.start);
+    // ファイル拡張子の確認
+    std::string extension = inputPath.substr(inputPath.find_last_of(".") + 1);
+    std::vector<uint8_t> imageData;
+
+    if (extension == "yaml" || extension == "yml")
+    {
+      // YAMLファイルの場合は、参照されているPGMファイルを読み込む
+      try
+      {
+        YAML::Node config = YAML::LoadFile(inputPath);
+        std::string pgmFile = config["image"].as<std::string>();
+        std::cout << "YAMLファイルから読み込んだPGMファイル: " << pgmFile << std::endl;
+
+        // PGMファイルの絶対パスを構築
+        fs::path yamlPath(inputPath);
+        fs::path pgmPath = yamlPath.parent_path() / pgmFile;
+        std::cout << "PGMファイルの絶対パス: " << pgmPath.string() << std::endl;
+
+        // PGMファイルを読み込む
+        input.close();
+        input.open(pgmPath.string(), std::ios::binary);
+        if (!input)
+        {
+          std::cerr << "PGMファイルを開けません: " << pgmPath.string() << std::endl;
+          return false;
+        }
+      }
+      catch (const std::exception &e)
+      {
+        std::cerr << "YAMLファイルの解析エラー: " << e.what() << std::endl;
+        return false;
+      }
+    }
 
     // 画像データの読み込み
-    std::vector<uint8_t> imageData(header.width * header.height);
-    if (!input.read(reinterpret_cast<char *>(imageData.data()), imageData.size()))
+    imageData.resize(header.width * header.height);
+
+    if (header.isPGMBinary)
     {
-      std::cerr << "画像データの読み込みエラー" << std::endl;
-      return false;
+      // バイナリPGM形式 (P5)
+      input.seekg(header.start);
+      std::cout << "ヘッダーサイズ（スキップ）: " << header.start << " バイト" << std::endl;
+      if (!input.read(reinterpret_cast<char *>(imageData.data()), imageData.size()))
+      {
+        std::cerr << "画像データの読み込みエラー" << std::endl;
+        return false;
+      }
+    }
+    else
+    {
+      // ASCII PGM形式 (P2)
+      std::cout << "ASCII PGM形式を読み込んでいます" << std::endl;
+
+      // ヘッダー部分をスキップ
+      input.seekg(header.start);
+      std::cout << "ヘッダーサイズ（スキップ）: " << header.start << " バイト" << std::endl;
+
+      // ASCII形式ではピクセル値が空白で区切られたテキストとして格納されている
+      for (size_t i = 0; i < imageData.size(); ++i)
+      {
+        int pixelValue;
+        input >> pixelValue;
+
+        if (input.fail())
+        {
+          std::cerr << "ピクセルデータの読み込みエラー（位置: " << i << "）" << std::endl;
+          return false;
+        }
+
+        imageData[i] = static_cast<uint8_t>(pixelValue);
+      }
     }
 
     input.close();
+
+    // 画像データの統計情報を表示
+    int minVal = 255, maxVal = 0;
+    long long sum = 0;
+    for (const auto &pixel : imageData)
+    {
+      minVal = std::min(minVal, static_cast<int>(pixel));
+      maxVal = std::max(maxVal, static_cast<int>(pixel));
+      sum += pixel;
+    }
+    double avgVal = static_cast<double>(sum) / imageData.size();
+    std::cout << "画像統計 - 最小値: " << minVal << ", 最大値: " << maxVal << ", 平均値: " << avgVal << std::endl;
 
     // 2値化処理
     for (auto &pixel : imageData)
     {
       pixel = (pixel >= threshold) ? 255 : 0;
+    }
+
+    // 2値化後の統計情報を表示
+    int zeroCount = 0, fullCount = 0;
+    for (const auto &pixel : imageData)
+    {
+      if (pixel == 0)
+        zeroCount++;
+      if (pixel == 255)
+        fullCount++;
+    }
+    std::cout << "2値化後 - 0の数: " << zeroCount << ", 255の数: " << fullCount << std::endl;
+
+    // 閾値が適切かどうかを調査
+    if (zeroCount == 0 || fullCount == 0)
+    {
+      std::cout << "警告: 2値化後の画像が単色になっています。閾値の調整が必要かもしれません。" << std::endl;
+      std::cout << "現在の閾値: " << threshold << ", 推奨閾値: " << static_cast<int>(avgVal) << std::endl;
+
+      // 閾値を調整して再試行
+      int newThreshold = static_cast<int>(avgVal);
+      if (newThreshold == threshold)
+      {
+        // 閾値が同じ場合は、最小値と最大値の中間を使用
+        newThreshold = (minVal + maxVal) / 2;
+      }
+
+      std::cout << "閾値を自動調整: " << threshold << " -> " << newThreshold << std::endl;
+
+      // 閾値を調整して2値化をやり直し
+      for (auto &pixel : imageData)
+      {
+        pixel = (pixel >= newThreshold) ? 255 : 0;
+      }
+
+      // 再度統計情報を表示
+      zeroCount = 0;
+      fullCount = 0;
+      for (const auto &pixel : imageData)
+      {
+        if (pixel == 0)
+          zeroCount++;
+        if (pixel == 255)
+          fullCount++;
+      }
+      std::cout << "調整後の2値化 - 0の数: " << zeroCount << ", 255の数: " << fullCount << std::endl;
     }
 
     // 出力ファイルの作成
@@ -130,6 +325,90 @@ namespace compressor
     std::cout << "2値化完了: " << outputPath << std::endl;
 
     return true;
+  }
+
+  bool ImageIO::readYamlImageData(const std::string &filePath,
+                                  std::vector<uint8_t> &imageData)
+  {
+    try
+    {
+      YAML::Node config = YAML::LoadFile(filePath);
+
+      // YAMLファイルからPGMファイルのパスを取得
+      std::string pgmFile = config["image"].as<std::string>();
+      std::cout << "YAMLファイルから読み込んだPGMファイル: " << pgmFile << std::endl;
+
+      // PGMファイルの絶対パスを構築
+      fs::path yamlPath(filePath);
+      fs::path pgmPath = yamlPath.parent_path() / pgmFile;
+      std::cout << "PGMファイルの絶対パス: " << pgmPath.string() << std::endl;
+
+      // PGMファイルを読み込む
+      std::ifstream input(pgmPath.string(), std::ios::binary);
+      if (!input)
+      {
+        std::cerr << "PGMファイルを開けません: " << pgmPath.string() << std::endl;
+        return false;
+      }
+
+      // ヘッダーを読み込む
+      std::string magic;
+      int width, height, maxval;
+      input >> magic;
+
+      // コメント行のスキップ
+      while (input.peek() == '#')
+      {
+        std::string comment;
+        std::getline(input, comment);
+      }
+
+      input >> width >> height >> maxval;
+
+      bool isBinary = (magic == "P5");
+
+      // ヘッダーの終わりの位置を記録
+      char c;
+      input.get(c); // データ部分の直前の1バイトを読み込む
+
+      // 画像データの読み込み
+      imageData.resize(width * height);
+
+      if (isBinary)
+      {
+        // バイナリPGM形式 (P5)
+        if (!input.read(reinterpret_cast<char *>(imageData.data()), imageData.size()))
+        {
+          std::cerr << "画像データの読み込みエラー" << std::endl;
+          return false;
+        }
+      }
+      else
+      {
+        // ASCII PGM形式 (P2)
+        for (size_t i = 0; i < imageData.size(); ++i)
+        {
+          int pixelValue;
+          input >> pixelValue;
+
+          if (input.fail())
+          {
+            std::cerr << "ピクセルデータの読み込みエラー（位置: " << i << "）" << std::endl;
+            return false;
+          }
+
+          imageData[i] = static_cast<uint8_t>(pixelValue);
+        }
+      }
+
+      input.close();
+      return true;
+    }
+    catch (const std::exception &e)
+    {
+      std::cerr << "YAMLデータの読み込みエラー: " << e.what() << std::endl;
+      return false;
+    }
   }
 
   bool ImageIO::saveDecompressedImage(const std::string &outputPath,

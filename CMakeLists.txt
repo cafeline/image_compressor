@@ -41,18 +41,29 @@ target_include_directories(${PROJECT_NAME}_lib PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
+target_link_libraries(${PROJECT_NAME}_lib
+  yaml-cpp
+  ${OpenCV_LIBRARIES}
+)
 
 # 実行ファイルを作成
 ament_auto_add_executable(compressed_image_publisher
   src/ros/compressed_image_publisher.cpp)
-target_link_libraries(compressed_image_publisher ${PROJECT_NAME}_lib "${cpp_typesupport_target}")
+target_link_libraries(compressed_image_publisher
+  ${PROJECT_NAME}_lib
+  yaml-cpp
+  ${OpenCV_LIBRARIES}
+  "${cpp_typesupport_target}"
+)
 
 ament_auto_add_executable(compressed_image_viewer
   src/ros/compressed_image_viewer.cpp)
 target_link_libraries(compressed_image_viewer
   ${PROJECT_NAME}_lib
+  yaml-cpp
+  ${OpenCV_LIBRARIES}
   "${cpp_typesupport_target}"
-  ${OpenCV_LIBRARIES})
+)
 
 # 設定ファイルとLaunchファイルのインストール
 install(DIRECTORY
