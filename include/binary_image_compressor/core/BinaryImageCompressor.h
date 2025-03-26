@@ -44,12 +44,12 @@ namespace compressor
 
   public:
     // ムーブコンストラクタとムーブ代入演算子の追加
-    BinaryImageCompressor(BinaryImageCompressor&&) noexcept = default;
-    BinaryImageCompressor& operator=(BinaryImageCompressor&&) noexcept = default;
+    BinaryImageCompressor(BinaryImageCompressor &&) noexcept = default;
+    BinaryImageCompressor &operator=(BinaryImageCompressor &&) noexcept = default;
 
     // コピー操作を禁止（リソース管理の観点から）
-    BinaryImageCompressor(const BinaryImageCompressor&) = delete;
-    BinaryImageCompressor& operator=(const BinaryImageCompressor&) = delete;
+    BinaryImageCompressor(const BinaryImageCompressor &) = delete;
+    BinaryImageCompressor &operator=(const BinaryImageCompressor &) = delete;
 
     // コンストラクタ
     BinaryImageCompressor(
@@ -72,7 +72,7 @@ namespace compressor
     bool decompress();
 
     // 最適なブロックサイズを見つける
-    BlockSizeResult findOptimalBlockSize();
+    BlockSizeResult findOptimalBlockSize(int minSize = 4, int maxSize = 16, int step = 2);
 
     // ユーティリティ
     float calculateCompressionRatio() const;

@@ -31,6 +31,10 @@ set(LIB_SOURCES
   src/core/DictionaryBuilder.cpp
   src/core/PatternEncoder.cpp
   src/io/ImageIO.cpp
+  src/io/FileSystem.cpp
+  src/io/ImageReader.cpp
+  src/io/PgmImageReader.cpp
+  src/io/YamlImageReader.cpp
   src/model/BinaryPattern.cpp
   src/model/BlockSizeResult.cpp
 )

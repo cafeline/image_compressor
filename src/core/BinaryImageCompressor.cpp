@@ -1,5 +1,6 @@
 #include "binary_image_compressor/core/BinaryImageCompressor.h"
 #include "binary_image_compressor/io/ImageIO.h"
+#include "binary_image_compressor/io/FileSystem.h"
 #include <iostream>
 #include <filesystem>
 #include <yaml-cpp/yaml.h>
@@ -39,18 +40,15 @@ namespace compressor
       fs::path input(inputPath);
       std::string baseName = input.stem().string();
 
-      patternDataPath = "temp/" + baseName + "_pattern.bin";
-      indexDataPath = "temp/" + baseName + "_index.bin";
-      dictionaryPath = "temp/" + baseName + "_dict.bin";
+      patternDataPath = FileSystem::generateTempFilePath(baseName, "_pattern.bin");
+      indexDataPath = FileSystem::generateTempFilePath(baseName, "_index.bin");
+      dictionaryPath = FileSystem::generateTempFilePath(baseName, "_dict.bin");
     }
   }
 
   void BinaryImageCompressor::ensureTempDirectoryExists()
   {
-    if (!fs::exists("temp"))
-    {
-      fs::create_directory("temp");
-    }
+    FileSystem::createDirectory("temp");
   }
 
   void BinaryImageCompressor::setInputPath(const std::string &path)
@@ -95,7 +93,7 @@ namespace compressor
     ensureTempDirectoryExists();
 
     // 画像の2値化
-    std::string binarizedPath = "temp/binarized.pgm";
+    std::string binarizedPath = FileSystem::generateTempFilePath("binarized", ".pgm");
     if (!ImageIO::binarizeImage(inputPath, binarizedPath, header, headerData, threshold))
     {
       std::cerr << "画像の2値化に失敗しました" << std::endl;
@@ -186,77 +184,6 @@ namespace compressor
     return true;
   }
 
-  BlockSizeResult BinaryImageCompressor::findOptimalBlockSize()
-  {
-    std::cout << "最適なブロックサイズを検索中..." << std::endl;
-
-    // 元のブロックサイズを保存
-    int originalBlockSize = blockSize;
-
-    // テスト用の一時ファイルパスを保存
-    std::string origPatternPath = patternDataPath;
-    std::string origIndexPath = indexDataPath;
-    std::string origDictPath = dictionaryPath;
-
-    // 最適なブロックサイズを見つけるための変数
-    BlockSizeResult bestResult(8, 0.0);
-    float bestRatio = 0.0f;
-
-    // 様々なブロックサイズでテスト
-    for (int size = 4; size <= 16; size += 2)
-    {
-      std::cout << "ブロックサイズ " << size << "x" << size << " でテスト中..." << std::endl;
-
-      // ブロックサイズの更新
-      setBlockSize(size);
-
-      // テスト用一時ファイルパス
-      std::string tempPatternPath = "temp/test_pattern_" + std::to_string(size) + ".bin";
-      std::string tempIndexPath = "temp/test_index_" + std::to_string(size) + ".bin";
-      std::string tempDictPath = "temp/test_dict_" + std::to_string(size) + ".bin";
-
-      patternDataPath = tempPatternPath;
-      indexDataPath = tempIndexPath;
-      dictionaryPath = tempDictPath;
-
-      // このブロックサイズで圧縮テスト
-      bool success = compress();
-
-      if (success)
-      {
-        // 圧縮率の計算
-        float ratio = calculateCompressionRatio();
-        std::cout << "  圧縮率: " << ratio << "%" << std::endl;
-
-        // より良い圧縮率が見つかった場合、結果を更新
-        if (ratio > bestRatio)
-        {
-          bestRatio = ratio;
-          bestResult.blockSize = size;
-          bestResult.compressionRatio = ratio;
-        }
-      }
-
-      // 元のパスを復元
-      patternDataPath = origPatternPath;
-      indexDataPath = origIndexPath;
-      dictionaryPath = origDictPath;
-
-      // 一時ファイルの削除
-      std::remove(tempPatternPath.c_str());
-      std::remove(tempIndexPath.c_str());
-      std::remove(tempDictPath.c_str());
-    }
-
-    // 元のブロックサイズを復元
-    setBlockSize(originalBlockSize);
-
-    std::cout << "最適なブロックサイズが見つかりました: " << bestResult.blockSize << "x"
-              << bestResult.blockSize << " (圧縮率: " << bestResult.compressionRatio << "%)" << std::endl;
-
-    return bestResult;
-  }
-
   float BinaryImageCompressor::calculateCompressionRatio() const
   {
     if (inputPath.empty() || dictionaryPath.empty() || indexDataPath.empty())
@@ -267,18 +194,18 @@ namespace compressor
     std::error_code ec;
 
     // 入力ファイルのサイズを取得（YAMLの場合は参照先PGMファイルのサイズ）
-    uintmax_t rawSize = ImageIO::getInputFileSize(inputPath);
+    uintmax_t rawSize = FileSystem::getInputFileSize(inputPath);
     if (rawSize == 0)
     {
       return -1.0f;
     }
 
-    uintmax_t dictSize = fs::file_size(dictionaryPath, ec);
-    if (ec)
+    uintmax_t dictSize = FileSystem::getFileSize(dictionaryPath);
+    if (dictSize == 0)
       return -1.0f;
 
-    uintmax_t indexSize = fs::file_size(indexDataPath, ec);
-    if (ec)
+    uintmax_t indexSize = FileSystem::getFileSize(indexDataPath);
+    if (indexSize == 0)
       return -1.0f;
 
     // 元のサイズに対する圧縮後のサイズの比率を計算
@@ -307,22 +234,22 @@ namespace compressor
     std::error_code ec;
 
     // 入力ファイルのサイズを取得（YAMLの場合は参照先PGMファイルのサイズ）
-    uintmax_t rawSize = ImageIO::getInputFileSize(inputPath);
+    uintmax_t rawSize = FileSystem::getInputFileSize(inputPath);
     if (rawSize == 0)
     {
       std::cerr << "入力ファイルのサイズを取得できません" << std::endl;
       return;
     }
 
-    uintmax_t dictSize = fs::file_size(dictionaryPath, ec);
-    if (ec)
+    uintmax_t dictSize = FileSystem::getFileSize(dictionaryPath);
+    if (dictSize == 0)
     {
       std::cerr << "辞書ファイルのサイズを取得できません" << std::endl;
       return;
     }
 
-    uintmax_t indexSize = fs::file_size(indexDataPath, ec);
-    if (ec)
+    uintmax_t indexSize = FileSystem::getFileSize(indexDataPath);
+    if (indexSize == 0)
     {
       std::cerr << "インデックスファイルのサイズを取得できません" << std::endl;
       return;
@@ -336,6 +263,59 @@ namespace compressor
     std::cout << "- 合計圧縮サイズ: " << (dictSize + indexSize) << " バイト" << std::endl;
     std::cout << "- 圧縮率: " << compressionRatio << "%" << std::endl;
     std::cout << "- ブロックサイズ: " << blockSize << "x" << blockSize << std::endl;
+  }
+
+  BlockSizeResult BinaryImageCompressor::findOptimalBlockSize(int minSize, int maxSize, int step)
+  {
+    if (inputPath.empty())
+    {
+      std::cerr << "入力パスが設定されていません" << std::endl;
+      return BlockSizeResult();
+    }
+
+    std::cout << "最適なブロックサイズを探索中..." << std::endl;
+
+    // 元のブロックサイズを保存
+    int originalBlockSize = blockSize;
+    BlockSizeResult bestResult(0, -100.0f);
+
+    // 各ブロックサイズをテスト
+    float bestRatio = 0.0f;
+    for (int size = minSize; size <= maxSize; size += step)
+    {
+      std::cout << "ブロックサイズ " << size << "x" << size << " をテスト中..." << std::endl;
+
+      // ブロックサイズを設定
+      setBlockSize(size);
+
+      // 圧縮を実行
+      if (!compress())
+      {
+        std::cerr << "ブロックサイズ " << size << " での圧縮に失敗しました" << std::endl;
+        continue;
+      }
+
+      // 圧縮率を計算
+      float ratio = calculateCompressionRatio();
+      std::cout << "  圧縮率: " << ratio << "%" << std::endl;
+
+      // 最良の圧縮率を保存
+      if (ratio > bestRatio)
+      {
+        std::cout << "  新しい最良の圧縮率を発見: " << ratio << "%" << std::endl;
+        bestRatio = ratio;
+        bestResult.blockSize = size;
+        bestResult.compressionRatio = ratio;
+      }
+    }
+
+    // 元のブロックサイズに戻す
+    setBlockSize(originalBlockSize);
+
+    std::cout << "最適なブロックサイズが見つかりました: " << bestResult.blockSize << "x"
+              << bestResult.blockSize << " (圧縮率: " << bestResult.compressionRatio << "%)" << std::endl;
+
+    return bestResult;
   }
 
 } // namespace compressor
