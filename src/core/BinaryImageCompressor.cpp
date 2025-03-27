@@ -1,6 +1,10 @@
 #include "binary_image_compressor/core/BinaryImageCompressor.h"
 #include "binary_image_compressor/io/ImageIO.h"
 #include "binary_image_compressor/io/FileSystem.h"
+#include "binary_image_compressor/io/ImageProcessor.h"
+#include "binary_image_compressor/core/BlockProcessor.h"
+#include "binary_image_compressor/core/DictionaryBuilder.h"
+#include "binary_image_compressor/core/PatternEncoder.h"
 #include <iostream>
 #include <filesystem>
 #include <yaml-cpp/yaml.h>
@@ -94,7 +98,7 @@ namespace compressor
 
     // 画像の2値化
     std::string binarizedPath = FileSystem::generateTempFilePath("binarized", ".pgm");
-    if (!ImageIO::binarizeImage(inputPath, binarizedPath, header, headerData, threshold))
+    if (!ImageProcessor::binarizeImage(inputPath, binarizedPath, header, headerData, threshold))
     {
       std::cerr << "画像の2値化に失敗しました" << std::endl;
       return false;

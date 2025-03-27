@@ -35,6 +35,7 @@ set(LIB_SOURCES
   src/io/ImageReader.cpp
   src/io/PgmImageReader.cpp
   src/io/YamlImageReader.cpp
+  src/io/ImageProcessor.cpp
   src/model/BinaryPattern.cpp
   src/model/BlockSizeResult.cpp
 )
