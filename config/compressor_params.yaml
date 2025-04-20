@@ -1,6 +1,6 @@
 /**:
   ros__parameters:
-    input_file: "/home/ryo/vq_ws/src/binary_image_compressor/map/mile1_2_50.yaml"
+    input_file: "/home/ryo/vq_ws/src/binary_image_compressor/map/turtlebot3_world.yaml"
     output_file: "/home/ryo/vq_ws/src/binary_image_compressor/map/output.pgm"
     block_size: 24
     threshold: 50
