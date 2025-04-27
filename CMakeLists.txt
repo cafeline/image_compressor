@@ -74,6 +74,7 @@ target_link_libraries(compressed_image_viewer
 install(DIRECTORY
   config
   launch
+  map
   DESTINATION share/${PROJECT_NAME}
 )
 
