@@ -7,6 +7,7 @@
 #include "binary_image_compressor/msg/compressed_binary_image.hpp"
 #include "binary_image_compressor/core/BinaryImageCompressor.h"
 #include "binary_image_compressor/ros/CompressedImagePublisher.h"
+#include "ament_index_cpp/get_package_share_directory.hpp"
 
 using namespace std::chrono_literals;
 namespace fs = std::filesystem;
@@ -17,6 +18,7 @@ namespace compressor
   {
     // パラメータの宣言
     this->declare_parameter("input_file", "");
+    this->declare_parameter("output_file", "");
     this->declare_parameter("block_size", 8);
     this->declare_parameter("threshold", 128);
     this->declare_parameter("publish_rate", 1.0);
@@ -26,9 +28,24 @@ namespace compressor
         "/compressed_binary_image",
         rclcpp::QoS(rclcpp::KeepLast(1)).transient_local().reliable().durability_volatile());
 
-
     // 一度だけ圧縮して送信するためのワンショットタイマー
     timer_ = this->create_wall_timer(1s, std::bind(&CompressedImagePublisher::publishCompressedImageOnce, this));
+  }
+
+  // 相対パスをパッケージのパスと結合する関数
+  std::string CompressedImagePublisher::getPackagePath(const std::string &relative_path)
+  {
+    try
+    {
+      std::string pkg_path = ament_index_cpp::get_package_share_directory("binary_image_compressor");
+      fs::path full_path = fs::path(pkg_path) / relative_path;
+      return full_path.string();
+    }
+    catch (const std::exception &e)
+    {
+      RCLCPP_ERROR(this->get_logger(), "パッケージパスの取得に失敗しました: %s", e.what());
+      return relative_path; // エラー時は元のパスを返す
+    }
   }
 
   void CompressedImagePublisher::publishCompressedImageOnce()
@@ -39,9 +56,14 @@ namespace compressor
       timer_->cancel();
     }
 
-    std::string input_file = this->get_parameter("input_file").as_string();
+    std::string input_file_rel = this->get_parameter("input_file").as_string();
+    std::string output_file_rel = this->get_parameter("output_file").as_string();
     int block_size = this->get_parameter("block_size").as_int();
     int threshold = this->get_parameter("threshold").as_int();
+
+    // 相対パスをパッケージのパスと結合
+    std::string input_file = getPackagePath(input_file_rel);
+    std::string output_file = getPackagePath(output_file_rel);
 
     RCLCPP_INFO(this->get_logger(), "画像の圧縮を開始します: %s", input_file.c_str());
 
@@ -51,10 +73,13 @@ namespace compressor
       return;
     }
 
+    // パッケージパスを取得
+    std::string pkg_path = ament_index_cpp::get_package_share_directory("binary_image_compressor");
+
     // 一時出力ファイルパスの作成
     fs::path input_path(input_file);
     std::string base_name = input_path.stem().string();
-    std::string temp_dir = "temp";
+    std::string temp_dir = pkg_path + "/temp";
 
     // 一時ディレクトリの作成（存在しない場合）
     if (!fs::exists(temp_dir))
@@ -92,10 +117,17 @@ namespace compressor
     message.header.stamp = this->now();
     message.header.frame_id = "map_frame";
 
+    // パッケージパスを取得
+    std::string pkg_path = ament_index_cpp::get_package_share_directory("binary_image_compressor");
+
+    // 入力ファイルの完全パス
+    std::string input_file_rel = this->get_parameter("input_file").as_string();
+    std::string input_file = getPackagePath(input_file_rel);
+
     // 元画像の情報を取得
     ImageHeader header;
     std::vector<char> header_data;
-    if (!ImageIO::parseHeader(this->get_parameter("input_file").as_string(), header, header_data))
+    if (!ImageIO::parseHeader(input_file, header, header_data))
     {
       RCLCPP_ERROR(this->get_logger(), "画像ヘッダーの解析に失敗しました");
       return message;
@@ -108,9 +140,9 @@ namespace compressor
     message.compression_ratio = compressor.calculateCompressionRatio();
 
     // 一時ファイルパスの設定
-    fs::path input_path(this->get_parameter("input_file").as_string());
+    fs::path input_path(input_file);
     std::string base_name = input_path.stem().string();
-    std::string temp_dir = "temp";
+    std::string temp_dir = pkg_path + "/temp";
 
     std::string dictionary_path = temp_dir + "/" + base_name + "_dict.bin";
     std::string index_data_path = temp_dir + "/" + base_name + "_index.bin";

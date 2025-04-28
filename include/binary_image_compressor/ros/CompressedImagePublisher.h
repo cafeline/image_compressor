@@ -1,10 +1,8 @@
-#ifndef COMPRESSED_IMAGE_PUBLISHER_H
-#define COMPRESSED_IMAGE_PUBLISHER_H
+#pragma once
 
-#include "rclcpp/rclcpp.hpp"
-#include "binary_image_compressor/core/BinaryImageCompressor.h"
+#include <rclcpp/rclcpp.hpp>
 #include "binary_image_compressor/msg/compressed_binary_image.hpp"
-#include "sensor_msgs/msg/image.hpp"
+#include "binary_image_compressor/core/BinaryImageCompressor.h"
 
 namespace compressor
 {
@@ -19,8 +17,8 @@ namespace compressor
 
   private:
     // 圧縮画像メッセージを作成するヘルパーメソッド
-    binary_image_compressor::msg::CompressedBinaryImage
-    createCompressedImageMessage(const BinaryImageCompressor &compressor);
+    binary_image_compressor::msg::CompressedBinaryImage createCompressedImageMessage(const BinaryImageCompressor &compressor);
+    std::string getPackagePath(const std::string &relative_path);
 
     // パブリッシャー
     rclcpp::Publisher<binary_image_compressor::msg::CompressedBinaryImage>::SharedPtr compressed_pub_;
@@ -29,5 +27,3 @@ namespace compressor
     rclcpp::TimerBase::SharedPtr timer_;
   };
 } // namespace compressor
-
-#endif // COMPRESSED_IMAGE_PUBLISHER_H

@@ -14,6 +14,7 @@ endif()
 find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
 find_package(OpenCV REQUIRED)
+find_package(ament_index_cpp REQUIRED)
 
 # メッセージの生成
 find_package(rosidl_default_generators REQUIRED)
@@ -59,6 +60,7 @@ target_link_libraries(compressed_image_publisher
   yaml-cpp
   ${OpenCV_LIBRARIES}
   "${cpp_typesupport_target}"
+  ament_index_cpp::ament_index_cpp
 )
 
 ament_auto_add_executable(compressed_image_viewer
@@ -75,6 +77,7 @@ install(DIRECTORY
   config
   launch
   map
+  temp
   DESTINATION share/${PROJECT_NAME}
 )
 

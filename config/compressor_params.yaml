@@ -1,7 +1,7 @@
 /**:
   ros__parameters:
-    input_file: "/home/ryo/vq_ws/src/binary_image_compressor/map/turtlebot3_world.yaml"
-    output_file: "/home/ryo/vq_ws/src/binary_image_compressor/map/output.pgm"
+    input_file: "map/turtlebot3_world.yaml"
+    output_file: "map/output.pgm"
     block_size: 24
     threshold: 50
     mode: "compress"  # "compress" or "decompress"
