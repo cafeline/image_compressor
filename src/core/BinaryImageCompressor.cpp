@@ -44,15 +44,18 @@ namespace compressor
       fs::path input(inputPath);
       std::string baseName = input.stem().string();
 
-      patternDataPath = FileSystem::generateTempFilePath(baseName, "_pattern.bin");
-      indexDataPath = FileSystem::generateTempFilePath(baseName, "_index.bin");
-      dictionaryPath = FileSystem::generateTempFilePath(baseName, "_dict.bin");
+      std::string baseDir = tempDirectory.empty() ? "temp" : tempDirectory;
+      
+      patternDataPath = baseDir + "/" + baseName + "_pattern.bin";
+      indexDataPath = baseDir + "/" + baseName + "_index.bin";
+      dictionaryPath = baseDir + "/" + baseName + "_dict.bin";
     }
   }
 
   void BinaryImageCompressor::ensureTempDirectoryExists()
   {
-    FileSystem::createDirectory("temp");
+    std::string dirPath = tempDirectory.empty() ? "temp" : tempDirectory;
+    FileSystem::createDirectory(dirPath);
   }
 
   void BinaryImageCompressor::setInputPath(const std::string &path)
@@ -77,6 +80,12 @@ namespace compressor
     threshold = value;
   }
 
+  void BinaryImageCompressor::setTempDirectory(const std::string &path)
+  {
+    tempDirectory = path;
+    initializeTempPaths(); // パスを更新
+  }
+
   bool BinaryImageCompressor::compress()
   {
     if (inputPath.empty() || outputPath.empty())
@@ -97,7 +106,8 @@ namespace compressor
     ensureTempDirectoryExists();
 
     // 画像の2値化
-    std::string binarizedPath = FileSystem::generateTempFilePath("binarized", ".pgm");
+    std::string baseDir = tempDirectory.empty() ? "temp" : tempDirectory;
+    std::string binarizedPath = baseDir + "/binarized.pgm";
     if (!ImageProcessor::binarizeImage(inputPath, binarizedPath, header, headerData, threshold))
     {
       std::cerr << "画像の2値化に失敗しました" << std::endl;

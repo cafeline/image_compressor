@@ -24,6 +24,7 @@ namespace compressor
     std::string indexDataPath;
     std::string dictionaryPath;
     std::string outputPath;
+    std::string tempDirectory; // 一時ディレクトリのパス
 
     // パラメータ
     int blockSize;
@@ -66,6 +67,7 @@ namespace compressor
     void setOutputPath(const std::string &path);
     void setBlockSize(int size);
     void setThreshold(int value);
+    void setTempDirectory(const std::string &path); // 一時ディレクトリの設定
 
     // メイン処理メソッド
     bool compress();

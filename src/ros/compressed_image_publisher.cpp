@@ -91,6 +91,7 @@ namespace compressor
 
     // 圧縮処理 - 必ず出力パスを指定
     BinaryImageCompressor compressor(input_file, temp_output_file, block_size, threshold);
+    compressor.setTempDirectory(temp_dir); // 一時ディレクトリを設定
     if (!compressor.compress())
     {
       RCLCPP_ERROR(this->get_logger(), "画像の圧縮に失敗しました");
