@@ -17,10 +17,12 @@ namespace compressor
       const std::string &inputFile,
       const std::string &outputFile,
       int blockSize,
-      int thresholdValue) : inputPath(inputFile),
+      int thresholdValue,
+      bool use8bitIndices) : inputPath(inputFile),
                             outputPath(outputFile),
                             blockSize(blockSize),
-                            threshold(thresholdValue)
+                            threshold(thresholdValue),
+                            use8bitIndices(use8bitIndices)
   {
     // コンポーネントの初期化
     blockProcessor = std::make_unique<BlockProcessor>(blockSize, blockSize);
@@ -86,6 +88,16 @@ namespace compressor
     initializeTempPaths(); // パスを更新
   }
 
+  void BinaryImageCompressor::setUse8bitIndices(bool use8bit)
+  {
+    use8bitIndices = use8bit;
+  }
+
+  bool BinaryImageCompressor::getUse8bitIndices() const
+  {
+    return use8bitIndices;
+  }
+
   bool BinaryImageCompressor::compress()
   {
     if (inputPath.empty() || outputPath.empty())
@@ -137,7 +149,7 @@ namespace compressor
     }
 
     // パターンのエンコード
-    if (!patternEncoder->encodePatterns(patternDataPath, dictionaryPath, indexDataPath, totalBlocks, patternBytes))
+    if (!patternEncoder->encodePatterns(patternDataPath, dictionaryPath, indexDataPath, totalBlocks, patternBytes, use8bitIndices))
     {
       std::cerr << "パターンエンコードに失敗しました" << std::endl;
       return false;
@@ -169,22 +181,40 @@ namespace compressor
     blockProcessor->calculatePatternSize(patternBits, patternBytes);
 
     // インデックスとパターンの復元
-    std::vector<uint16_t> indices;
     std::vector<std::vector<uint8_t>> patterns;
-
-    if (!patternEncoder->decodePatterns(indexDataPath, dictionaryPath, indices, patterns, totalBlocks, patternBytes))
-    {
-      std::cerr << "パターンのデコードに失敗しました" << std::endl;
-      return false;
-    }
-
-    // 画像の再構築
     std::vector<uint8_t> imageData(header.width * header.height);
 
-    if (!blockProcessor->reconstructImage(indices, patterns, header, imageData))
+    if (use8bitIndices)
     {
-      std::cerr << "画像の再構築に失敗しました" << std::endl;
-      return false;
+      std::vector<uint8_t> indices8;
+      if (!patternEncoder->decodePatterns8bit(indexDataPath, dictionaryPath, indices8, patterns, totalBlocks, patternBytes))
+      {
+        std::cerr << "パターンのデコードに失敗しました" << std::endl;
+        return false;
+      }
+
+      // 画像の再構築 (8bit)
+      if (!blockProcessor->reconstructImage8bit(indices8, patterns, header, imageData))
+      {
+        std::cerr << "画像の再構築に失敗しました" << std::endl;
+        return false;
+      }
+    }
+    else
+    {
+      std::vector<uint16_t> indices16;
+      if (!patternEncoder->decodePatterns(indexDataPath, dictionaryPath, indices16, patterns, totalBlocks, patternBytes))
+      {
+        std::cerr << "パターンのデコードに失敗しました" << std::endl;
+        return false;
+      }
+
+      // 画像の再構築 (16bit)
+      if (!blockProcessor->reconstructImage(indices16, patterns, header, imageData))
+      {
+        std::cerr << "画像の再構築に失敗しました" << std::endl;
+        return false;
+      }
     }
 
     // 画像の保存

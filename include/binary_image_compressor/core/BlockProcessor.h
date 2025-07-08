@@ -28,11 +28,24 @@ namespace compressor
     // パターンサイズの計算
     void calculatePatternSize(int &patternBits, int &patternBytes) const;
 
-    // 復元画像の生成
+    // 復元画像の生成 (16bit indices)
     bool reconstructImage(const std::vector<uint16_t> &indices,
                           const std::vector<std::vector<uint8_t>> &patterns,
                           const ImageHeader &header,
                           std::vector<uint8_t> &imageData) const;
+
+    // 復元画像の生成 (8bit indices)
+    bool reconstructImage8bit(const std::vector<uint8_t> &indices,
+                             const std::vector<std::vector<uint8_t>> &patterns,
+                             const ImageHeader &header,
+                             std::vector<uint8_t> &imageData) const;
+
+    // 復元画像の生成 (汎用テンプレート)
+    template<typename IndexType>
+    bool reconstructImageGeneric(const std::vector<IndexType> &indices,
+                                const std::vector<std::vector<uint8_t>> &patterns,
+                                const ImageHeader &header,
+                                std::vector<uint8_t> &imageData) const;
 
   private:
     int blockRowSize;

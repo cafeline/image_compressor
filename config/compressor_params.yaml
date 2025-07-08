@@ -5,3 +5,4 @@
     block_size: 24
     threshold: 50
     mode: "compress"  # "compress" or "decompress"
+    use_8bit_indices: true  # true: 8bit indices (max 255 patterns), false: 16bit indices (max 65535 patterns)

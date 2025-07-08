@@ -22,6 +22,7 @@ namespace compressor
     this->declare_parameter("block_size", 8);
     this->declare_parameter("threshold", 128);
     this->declare_parameter("publish_rate", 1.0);
+    this->declare_parameter("use_8bit_indices", false);
 
     // パブリッシャーの作成
     compressed_pub_ = this->create_publisher<binary_image_compressor::msg::CompressedBinaryImage>(
@@ -60,6 +61,7 @@ namespace compressor
     std::string output_file_rel = this->get_parameter("output_file").as_string();
     int block_size = this->get_parameter("block_size").as_int();
     int threshold = this->get_parameter("threshold").as_int();
+    bool use_8bit_indices = this->get_parameter("use_8bit_indices").as_bool();
 
     // 相対パスをパッケージのパスと結合
     std::string input_file = getPackagePath(input_file_rel);
@@ -90,7 +92,7 @@ namespace compressor
     std::string temp_output_file = temp_dir + "/" + base_name + "_compressed.pgm";
 
     // 圧縮処理 - 必ず出力パスを指定
-    BinaryImageCompressor compressor(input_file, temp_output_file, block_size, threshold);
+    BinaryImageCompressor compressor(input_file, temp_output_file, block_size, threshold, use_8bit_indices);
     compressor.setTempDirectory(temp_dir); // 一時ディレクトリを設定
     if (!compressor.compress())
     {
@@ -102,8 +104,11 @@ namespace compressor
     auto message = createCompressedImageMessage(compressor);
 
     // メッセージをパブリッシュ
+    size_t index_size = message.use_8bit_indices ? 
+                       message.block_indices_8bit.size() * sizeof(uint8_t) :
+                       message.block_indices_16bit.size() * sizeof(uint16_t);
     RCLCPP_INFO(this->get_logger(), "圧縮画像をパブリッシュします (サイズ: %zu バイト)",
-                message.pattern_data.size() + message.block_indices.size() * sizeof(uint16_t));
+                message.pattern_data.size() + index_size);
     compressed_pub_->publish(message);
 
     RCLCPP_INFO(this->get_logger(), "圧縮画像のパブリッシュが完了しました - プログラムを終了するには Ctrl+C を押してください");
@@ -171,6 +176,10 @@ namespace compressor
       message.pattern_data.insert(message.pattern_data.end(), pattern.pattern.begin(), pattern.pattern.end());
     }
 
+    // インデックスサイズの設定
+    bool use_8bit_indices = this->get_parameter("use_8bit_indices").as_bool();
+    message.use_8bit_indices = use_8bit_indices;
+
     // インデックスファイルの読み込み
     std::ifstream index_file(index_data_path, std::ios::binary);
     if (!index_file)
@@ -184,9 +193,17 @@ namespace compressor
     BlockProcessor bp(block_size, block_size);
     bp.calculateBlockCount(header, row_blocks, col_blocks, total_blocks);
 
-    // インデックスデータの読み込み
-    message.block_indices.resize(total_blocks);
-    index_file.read(reinterpret_cast<char *>(message.block_indices.data()), total_blocks * sizeof(uint16_t));
+    // インデックスデータの読み込み (8bit or 16bit)
+    if (use_8bit_indices)
+    {
+      message.block_indices_8bit.resize(total_blocks);
+      index_file.read(reinterpret_cast<char *>(message.block_indices_8bit.data()), total_blocks * sizeof(uint8_t));
+    }
+    else
+    {
+      message.block_indices_16bit.resize(total_blocks);
+      index_file.read(reinterpret_cast<char *>(message.block_indices_16bit.data()), total_blocks * sizeof(uint16_t));
+    }
 
     return message;
   }

@@ -12,4 +12,6 @@ uint8[] pattern_data    # 全パターンデータ（連結形式）
 uint8 pattern_bytes     # 1パターンあたりのバイト数
 
 # インデックスデータ
-uint16[] block_indices  # 各ブロックのパターンインデックス
+bool use_8bit_indices   # true: 8bit indices, false: 16bit indices
+uint8[] block_indices_8bit   # 8bitインデックス (use_8bit_indices=trueの場合使用)
+uint16[] block_indices_16bit # 16bitインデックス (use_8bit_indices=falseの場合使用)

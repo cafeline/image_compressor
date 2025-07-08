@@ -144,6 +144,23 @@ namespace compressor
                                         const ImageHeader &header,
                                         std::vector<uint8_t> &imageData) const
   {
+    return reconstructImageGeneric(indices, patterns, header, imageData);
+  }
+
+  bool BlockProcessor::reconstructImage8bit(const std::vector<uint8_t> &indices,
+                                           const std::vector<std::vector<uint8_t>> &patterns,
+                                           const ImageHeader &header,
+                                           std::vector<uint8_t> &imageData) const
+  {
+    return reconstructImageGeneric(indices, patterns, header, imageData);
+  }
+
+  template<typename IndexType>
+  bool BlockProcessor::reconstructImageGeneric(const std::vector<IndexType> &indices,
+                                              const std::vector<std::vector<uint8_t>> &patterns,
+                                              const ImageHeader &header,
+                                              std::vector<uint8_t> &imageData) const
+  {
     // 画像バッファの準備
     imageData.resize(header.width * header.height, 0);
 
@@ -169,8 +186,8 @@ namespace compressor
           return false;
         }
 
-        uint16_t patternIndex = indices[blockIndex++];
-        if (patternIndex >= patterns.size())
+        IndexType patternIndex = indices[blockIndex++];
+        if (static_cast<size_t>(patternIndex) >= patterns.size())
         {
           std::cerr << "パターンインデックスの範囲外エラー" << std::endl;
           return false;
@@ -212,5 +229,16 @@ namespace compressor
 
     return true;
   }
+
+  // テンプレートの明示的インスタンス化
+  template bool BlockProcessor::reconstructImageGeneric<uint8_t>(const std::vector<uint8_t> &indices,
+                                                                const std::vector<std::vector<uint8_t>> &patterns,
+                                                                const ImageHeader &header,
+                                                                std::vector<uint8_t> &imageData) const;
+
+  template bool BlockProcessor::reconstructImageGeneric<uint16_t>(const std::vector<uint16_t> &indices,
+                                                                 const std::vector<std::vector<uint8_t>> &patterns,
+                                                                 const ImageHeader &header,
+                                                                 std::vector<uint8_t> &imageData) const;
 
 } // namespace compressor

@@ -11,7 +11,26 @@ namespace compressor
                                       int totalBlocks,
                                       int patternBytes)
   {
-    std::cout << "ブロックパターンのエンコード中..." << std::endl;
+    return encodePatterns(patternDataPath, dictionaryPath, indexDataPath, totalBlocks, patternBytes, false);
+  }
+
+  bool PatternEncoder::encodePatterns8bit(const std::string &patternDataPath,
+                                         const std::string &dictionaryPath,
+                                         const std::string &indexDataPath,
+                                         int totalBlocks,
+                                         int patternBytes)
+  {
+    return encodePatterns(patternDataPath, dictionaryPath, indexDataPath, totalBlocks, patternBytes, true);
+  }
+
+  bool PatternEncoder::encodePatterns(const std::string &patternDataPath,
+                                      const std::string &dictionaryPath,
+                                      const std::string &indexDataPath,
+                                      int totalBlocks,
+                                      int patternBytes,
+                                      bool use8bit)
+  {
+    std::cout << "ブロックパターンのエンコード中 (" << (use8bit ? "8bit" : "16bit") << " インデックス)..." << std::endl;
 
     std::ifstream blockFile(patternDataPath, std::ios::binary);
     std::ifstream dictFile(dictionaryPath, std::ios::binary);
@@ -26,6 +45,13 @@ namespace compressor
     // パターン数を読み込む
     uint16_t patternCount;
     dictFile.read(reinterpret_cast<char *>(&patternCount), sizeof(uint16_t));
+
+    // 8bitインデックスの場合、パターン数をチェック
+    if (use8bit && patternCount > 255)
+    {
+      std::cerr << "8bitインデックスを使用するには、パターン数が255以下である必要があります。現在のパターン数: " << patternCount << std::endl;
+      return false;
+    }
 
     // すべてのパターンを読み込む
     std::vector<BinaryPattern> patterns(patternCount);
@@ -72,8 +98,16 @@ namespace compressor
       }
 
       // インデックスをファイルに書き込む
-      uint16_t index = static_cast<uint16_t>(matchIndex);
-      indexFile.write(reinterpret_cast<char *>(&index), sizeof(uint16_t));
+      if (use8bit)
+      {
+        uint8_t index = static_cast<uint8_t>(matchIndex);
+        indexFile.write(reinterpret_cast<char *>(&index), sizeof(uint8_t));
+      }
+      else
+      {
+        uint16_t index = static_cast<uint16_t>(matchIndex);
+        indexFile.write(reinterpret_cast<char *>(&index), sizeof(uint16_t));
+      }
     }
 
     blockFile.close();
@@ -84,12 +118,23 @@ namespace compressor
     return true;
   }
 
-  bool PatternEncoder::decodePatterns(const std::string &indexDataPath,
-                                      const std::string &dictionaryPath,
-                                      std::vector<uint16_t> &indices,
-                                      std::vector<std::vector<uint8_t>> &patterns,
-                                      int totalBlocks,
-                                      int patternBytes)
+  bool PatternEncoder::decodePatterns8bit(const std::string &indexDataPath,
+                                         const std::string &dictionaryPath,
+                                         std::vector<uint8_t> &indices,
+                                         std::vector<std::vector<uint8_t>> &patterns,
+                                         int totalBlocks,
+                                         int patternBytes)
+  {
+    return decodePatternsGeneric(indexDataPath, dictionaryPath, indices, patterns, totalBlocks, patternBytes);
+  }
+
+  template<typename IndexType>
+  bool PatternEncoder::decodePatternsGeneric(const std::string &indexDataPath,
+                                            const std::string &dictionaryPath,
+                                            std::vector<IndexType> &indices,
+                                            std::vector<std::vector<uint8_t>> &patterns,
+                                            int totalBlocks,
+                                            int patternBytes)
   {
     std::ifstream indexFile(indexDataPath, std::ios::binary);
     std::ifstream dictFile(dictionaryPath, std::ios::binary);
@@ -126,7 +171,7 @@ namespace compressor
     indices.resize(totalBlocks);
     for (int i = 0; i < totalBlocks; ++i)
     {
-      if (!indexFile.read(reinterpret_cast<char *>(&indices[i]), sizeof(uint16_t)))
+      if (!indexFile.read(reinterpret_cast<char *>(&indices[i]), sizeof(IndexType)))
       {
         if (indexFile.eof() && i == totalBlocks - 1)
         {
@@ -138,7 +183,7 @@ namespace compressor
 
       if (indices[i] >= patternCount)
       {
-        std::cerr << "インデックスが範囲外です: " << indices[i] << std::endl;
+        std::cerr << "インデックスが範囲外です: " << static_cast<int>(indices[i]) << std::endl;
         return false;
       }
     }
@@ -147,5 +192,31 @@ namespace compressor
     dictFile.close();
     return true;
   }
+
+  // 既存の16bit版メソッド (修正)
+  bool PatternEncoder::decodePatterns(const std::string &indexDataPath,
+                                      const std::string &dictionaryPath,
+                                      std::vector<uint16_t> &indices,
+                                      std::vector<std::vector<uint8_t>> &patterns,
+                                      int totalBlocks,
+                                      int patternBytes)
+  {
+    return decodePatternsGeneric(indexDataPath, dictionaryPath, indices, patterns, totalBlocks, patternBytes);
+  }
+
+  // テンプレートの明示的インスタンス化
+  template bool PatternEncoder::decodePatternsGeneric<uint8_t>(const std::string &indexDataPath,
+                                                              const std::string &dictionaryPath,
+                                                              std::vector<uint8_t> &indices,
+                                                              std::vector<std::vector<uint8_t>> &patterns,
+                                                              int totalBlocks,
+                                                              int patternBytes);
+
+  template bool PatternEncoder::decodePatternsGeneric<uint16_t>(const std::string &indexDataPath,
+                                                               const std::string &dictionaryPath,
+                                                               std::vector<uint16_t> &indices,
+                                                               std::vector<std::vector<uint8_t>> &patterns,
+                                                               int totalBlocks,
+                                                               int patternBytes);
 
 } // namespace compressor

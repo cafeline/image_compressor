@@ -121,13 +121,25 @@ private:
       }
     }
 
+    // インデックスデータを取得
+    std::vector<uint16_t> block_indices;
+    if (msg->use_8bit_indices) {
+      // 8bitから16bitに変換
+      block_indices.resize(msg->block_indices_8bit.size());
+      for (size_t i = 0; i < msg->block_indices_8bit.size(); ++i) {
+        block_indices[i] = static_cast<uint16_t>(msg->block_indices_8bit[i]);
+      }
+    } else {
+      block_indices = msg->block_indices_16bit;
+    }
+
     // SimplifiedCompressedMapの作成
     auto compressed_map = std::make_unique<SimplifiedCompressedMap>(
       msg->original_width, msg->original_height,
       this->get_parameter("map_resolution").as_double(),
       this->get_parameter("map_origin_x").as_double(),
       this->get_parameter("map_origin_y").as_double(),
-      msg->block_size, patterns, msg->block_indices);
+      msg->block_size, patterns, block_indices);
 
     RCLCPP_INFO(get_logger(), "SimplifiedCompressedMapを作成しました");
     RCLCPP_INFO(get_logger(), "地図サイズ: %dx%d", 

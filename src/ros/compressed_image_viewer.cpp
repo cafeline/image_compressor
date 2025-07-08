@@ -42,9 +42,17 @@ private:
       // ブロックプロセッサーの初期化
       compressor::BlockProcessor bp(msg->block_size, msg->block_size);
 
-      // 画像データの再構築
+      // 画像データの再構築 (8bit or 16bit indices)
       std::vector<uint8_t> image_data;
-      if (!bp.reconstructImage(msg->block_indices, patterns, header, image_data)) {
+      bool reconstruction_success = false;
+      
+      if (msg->use_8bit_indices) {
+        reconstruction_success = bp.reconstructImage8bit(msg->block_indices_8bit, patterns, header, image_data);
+      } else {
+        reconstruction_success = bp.reconstructImage(msg->block_indices_16bit, patterns, header, image_data);
+      }
+      
+      if (!reconstruction_success) {
         RCLCPP_ERROR(this->get_logger(), "画像の再構築に失敗しました");
         return;
       }

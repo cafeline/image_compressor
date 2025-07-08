@@ -29,6 +29,7 @@ namespace compressor
     // パラメータ
     int blockSize;
     int threshold;
+    bool use8bitIndices; // 8bitインデックスを使用するかどうか
 
     // 画像情報
     ImageHeader header;
@@ -57,7 +58,8 @@ namespace compressor
         const std::string &inputFile = "",
         const std::string &outputFile = "",
         int blockSize = 8,
-        int thresholdValue = 128);
+        int thresholdValue = 128,
+        bool use8bitIndices = false);
 
     // デストラクタ
     ~BinaryImageCompressor();
@@ -68,6 +70,10 @@ namespace compressor
     void setBlockSize(int size);
     void setThreshold(int value);
     void setTempDirectory(const std::string &path); // 一時ディレクトリの設定
+    void setUse8bitIndices(bool use8bit); // 8bitインデックス使用設定
+
+    // ゲッター
+    bool getUse8bitIndices() const; // 8bitインデックス使用取得
 
     // メイン処理メソッド
     bool compress();
