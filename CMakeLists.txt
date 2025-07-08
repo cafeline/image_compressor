@@ -15,6 +15,8 @@ find_package(ament_cmake_auto REQUIRED)
 ament_auto_find_build_dependencies()
 find_package(OpenCV REQUIRED)
 find_package(ament_index_cpp REQUIRED)
+find_package(std_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
 
 # メッセージの生成
 find_package(rosidl_default_generators REQUIRED)
@@ -54,7 +56,8 @@ target_link_libraries(${PROJECT_NAME}_lib
 
 # 実行ファイルを作成
 ament_auto_add_executable(compressed_image_publisher
-  src/ros/compressed_image_publisher.cpp)
+  src/ros/compressed_image_publisher.cpp
+)
 target_link_libraries(compressed_image_publisher
   ${PROJECT_NAME}_lib
   yaml-cpp
@@ -64,12 +67,26 @@ target_link_libraries(compressed_image_publisher
 )
 
 ament_auto_add_executable(compressed_image_viewer
-  src/ros/compressed_image_viewer.cpp)
+  src/ros/compressed_image_viewer.cpp
+)
 target_link_libraries(compressed_image_viewer
   ${PROJECT_NAME}_lib
   yaml-cpp
   ${OpenCV_LIBRARIES}
   "${cpp_typesupport_target}"
+)
+
+# compressed_map_benchmarkノードを追加
+ament_auto_add_executable(compressed_map_benchmark
+  src/ros/compressed_map_benchmark.cpp
+)
+target_link_libraries(compressed_map_benchmark
+  "${cpp_typesupport_target}"
+)
+ament_target_dependencies(compressed_map_benchmark
+  rclcpp
+  nav_msgs
+  std_msgs
 )
 
 # 設定ファイルとLaunchファイルのインストール

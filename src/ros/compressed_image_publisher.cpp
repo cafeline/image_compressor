@@ -26,7 +26,7 @@ namespace compressor
     // パブリッシャーの作成
     compressed_pub_ = this->create_publisher<binary_image_compressor::msg::CompressedBinaryImage>(
         "/compressed_binary_image",
-        rclcpp::QoS(rclcpp::KeepLast(1)).transient_local().reliable().durability_volatile());
+        10);
 
     // 一度だけ圧縮して送信するためのワンショットタイマー
     timer_ = this->create_wall_timer(1s, std::bind(&CompressedImagePublisher::publishCompressedImageOnce, this));
