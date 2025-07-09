@@ -1,30 +1,25 @@
 #include <rclcpp/rclcpp.hpp>
-#include <nav_msgs/msg/map_meta_data.hpp>
+#include <nav_msgs/msg/occupancy_grid.hpp>
 #include <std_msgs/msg/float64.hpp>
-#include "binary_image_compressor/msg/compressed_binary_image.hpp"
 #include <chrono>
 #include <random>
 #include <vector>
-#include <numeric>
 #include <cmath>
 
 namespace compressor
 {
 
-// 簡単な圧縮地図クラス（emcl2_ros2に依存しない）
-class SimplifiedCompressedMap
+// 通常の占有格子地図クラス
+class OrdinaryOccupancyMap
 {
 public:
-  SimplifiedCompressedMap(
-    uint32_t width, uint32_t height, double resolution,
-    double origin_x, double origin_y, uint8_t block_size,
-    const std::vector<std::vector<int8_t>>& patterns,
-    const std::vector<uint16_t>& block_indices)
-  : width_(width), height_(height), resolution_(resolution),
-    origin_x_(origin_x), origin_y_(origin_y), block_size_(block_size),
-    patterns_(patterns), block_indices_(block_indices)
+  OrdinaryOccupancyMap(const nav_msgs::msg::OccupancyGrid::SharedPtr msg)
+  : width_(msg->info.width), height_(msg->info.height), 
+    resolution_(msg->info.resolution),
+    origin_x_(msg->info.origin.position.x),
+    origin_y_(msg->info.origin.position.y),
+    data_(msg->data)
   {
-    blocks_per_row_ = (width_ + block_size_ - 1) / block_size_;
   }
 
   uint8_t getValue(double x, double y) const
@@ -36,8 +31,8 @@ public:
       return 0;
     }
 
-    int8_t value = getValueFromPattern(getBlockIndex(ix, iy), ix % block_size_, iy % block_size_);
-    return (value > 0) ? 255 : 0;
+    int8_t value = data_[iy * width_ + ix];
+    return value;  // 占有/自由領域
   }
 
   uint32_t getWidth() const { return width_; }
@@ -47,115 +42,59 @@ public:
   double getOriginY() const { return origin_y_; }
 
 private:
-  uint16_t getBlockIndex(int grid_x, int grid_y) const
-  {
-    int block_x = grid_x / block_size_;
-    int block_y = grid_y / block_size_;
-    return block_indices_[block_y * blocks_per_row_ + block_x];
-  }
-
-  int8_t getValueFromPattern(uint16_t pattern_index, int block_x, int block_y) const
-  {
-    if (pattern_index >= patterns_.size()) {
-      return 0;
-    }
-    return patterns_[pattern_index][block_y * block_size_ + block_x];
-  }
-
   uint32_t width_;
   uint32_t height_;
   double resolution_;
   double origin_x_;
   double origin_y_;
-  uint8_t block_size_;
-  std::vector<std::vector<int8_t>> patterns_;
-  std::vector<uint16_t> block_indices_;
-  int blocks_per_row_;
+  std::vector<int8_t> data_;
 };
 
-class CompressedMapBenchmark : public rclcpp::Node
+class OrdinaryMapBenchmark : public rclcpp::Node
 {
 public:
-  CompressedMapBenchmark() : Node("compressed_map_benchmark")
+  OrdinaryMapBenchmark() : Node("ordinary_map_benchmark")
   {
     // パラメータの宣言
-    this->declare_parameter("map_resolution", 0.05);
-    this->declare_parameter("map_origin_x", 0.0);
-    this->declare_parameter("map_origin_y", 0.0);
-
-    this->declare_parameter("benchmark_iterations", 1000000); // 100万回アクセス
+    this->declare_parameter("benchmark_iterations", 1000000);
     this->declare_parameter("random_seed", 42);
 
     // サブスクライバーの作成
-    compressed_image_sub_ = create_subscription<binary_image_compressor::msg::CompressedBinaryImage>(
-      "/compressed_binary_image",
+    map_sub_ = create_subscription<nav_msgs::msg::OccupancyGrid>(
+      "/map",
       10,
-      std::bind(&CompressedMapBenchmark::cbCompressedImage, this, std::placeholders::_1));
+      std::bind(&OrdinaryMapBenchmark::cbMap, this, std::placeholders::_1));
 
-    // パブリッシャーの作成（結果通知用）
+    // パブリッシャーの作成
     benchmark_result_pub_ = create_publisher<std_msgs::msg::Float64>(
-      "compressed_map_benchmark_result", 10);
+      "ordinary_map_benchmark_result", 10);
 
-    RCLCPP_INFO(get_logger(), "圧縮地図ベンチマークノードを開始しました");
+    RCLCPP_INFO(get_logger(), "通常地図ベンチマークノードを開始しました");
   }
 
 private:
-  void cbCompressedImage(const binary_image_compressor::msg::CompressedBinaryImage::SharedPtr msg)
+  void cbMap(const nav_msgs::msg::OccupancyGrid::SharedPtr msg)
   {
-    RCLCPP_INFO(get_logger(), "圧縮地図データを受信しました");
+    RCLCPP_INFO(get_logger(), "占有格子地図を受信しました");
     
-    // パターンデータの復元
-    std::vector<std::vector<int8_t>> patterns;
-    const size_t block_pixel_count = static_cast<size_t>(msg->block_size) * msg->block_size;
-    patterns.resize(msg->pattern_count);
-    
-    for (uint16_t i = 0; i < msg->pattern_count; ++i) {
-      patterns[i].resize(block_pixel_count);
-      const uint8_t* pattern_start = &msg->pattern_data[i * msg->pattern_bytes];
-      
-      for (size_t p_idx = 0; p_idx < block_pixel_count; ++p_idx) {
-        const size_t byte_idx = p_idx / 8;
-        const size_t bit_idx = p_idx % 8;
-        bool is_set = (pattern_start[byte_idx] >> (7 - bit_idx)) & 1;
-        patterns[i][p_idx] = is_set ? 0 : 100;
-      }
-    }
+    // OrdinaryOccupancyMapの作成
+    auto ordinary_map = std::make_unique<OrdinaryOccupancyMap>(msg);
 
-    // インデックスデータを取得
-    std::vector<uint16_t> block_indices;
-    if (msg->use_8bit_indices) {
-      // 8bitから16bitに変換
-      block_indices.resize(msg->block_indices_8bit.size());
-      for (size_t i = 0; i < msg->block_indices_8bit.size(); ++i) {
-        block_indices[i] = static_cast<uint16_t>(msg->block_indices_8bit[i]);
-      }
-    } else {
-      block_indices = msg->block_indices_16bit;
-    }
-
-    // SimplifiedCompressedMapの作成
-    auto compressed_map = std::make_unique<SimplifiedCompressedMap>(
-      msg->original_width, msg->original_height,
-      this->get_parameter("map_resolution").as_double(),
-      this->get_parameter("map_origin_x").as_double(),
-      this->get_parameter("map_origin_y").as_double(),
-      msg->block_size, patterns, block_indices);
-
-    RCLCPP_INFO(get_logger(), "SimplifiedCompressedMapを作成しました");
+    RCLCPP_INFO(get_logger(), "OrdinaryOccupancyMapを作成しました");
     RCLCPP_INFO(get_logger(), "地図サイズ: %dx%d", 
-                compressed_map->getWidth(), compressed_map->getHeight());
-    RCLCPP_INFO(get_logger(), "解像度: %f", compressed_map->getResolution());
+                ordinary_map->getWidth(), ordinary_map->getHeight());
+    RCLCPP_INFO(get_logger(), "解像度: %f", ordinary_map->getResolution());
     
     // ベンチマークの実行
-    runBenchmarks(compressed_map.get());
+    runBenchmarks(ordinary_map.get());
   }
 
-  void runBenchmarks(SimplifiedCompressedMap* map)
+  void runBenchmarks(OrdinaryOccupancyMap* map)
   {
     int iterations = this->get_parameter("benchmark_iterations").as_int();
     int seed = this->get_parameter("random_seed").as_int();
     
-    RCLCPP_INFO(get_logger(), "=== 圧縮地図読み出し性能ベンチマーク開始 ===");
+    RCLCPP_INFO(get_logger(), "=== 通常地図読み出し性能ベンチマーク開始 ===");
     RCLCPP_INFO(get_logger(), "テスト回数: %d", iterations);
     
     // 1. ランダムアクセステスト
@@ -176,7 +115,7 @@ private:
     RCLCPP_INFO(get_logger(), "=== ベンチマーク完了 ===");
   }
 
-  void runRandomAccessBenchmark(SimplifiedCompressedMap* map, int iterations, int seed)
+  void runRandomAccessBenchmark(OrdinaryOccupancyMap* map, int iterations, int seed)
   {
     std::mt19937 gen(seed);
     std::uniform_real_distribution<> x_dist(map->getOriginX(), 
@@ -200,13 +139,13 @@ private:
     auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
     
     double avg_time_ns = static_cast<double>(duration.count()) / iterations;
-    double throughput = iterations / (duration.count() / 1e9); // queries per second
+    double throughput = iterations / (duration.count() / 1e9);
     
     RCLCPP_INFO(get_logger(), "ランダムアクセス: 平均 %.2f ns/query, %.2f M queries/sec", 
                 avg_time_ns, throughput / 1e6);
   }
 
-  void runSequentialRowBenchmark(SimplifiedCompressedMap* map, int iterations)
+  void runSequentialRowBenchmark(OrdinaryOccupancyMap* map, int iterations)
   {
     uint32_t width = map->getWidth();
     uint32_t height = map->getHeight();
@@ -237,7 +176,7 @@ private:
     RCLCPP_INFO(get_logger(), "行方向連続アクセス: 平均 %.2f ns/query", avg_time_ns);
   }
 
-  void runSequentialColumnBenchmark(SimplifiedCompressedMap* map, int iterations)
+  void runSequentialColumnBenchmark(OrdinaryOccupancyMap* map, int iterations)
   {
     uint32_t width = map->getWidth();
     uint32_t height = map->getHeight();
@@ -268,7 +207,7 @@ private:
     RCLCPP_INFO(get_logger(), "列方向連続アクセス: 平均 %.2f ns/query", avg_time_ns);
   }
 
-  void runLidarSimulationBenchmark(SimplifiedCompressedMap* map, int iterations, int seed)
+  void runLidarSimulationBenchmark(OrdinaryOccupancyMap* map, int iterations, int seed)
   {
     std::mt19937 gen(seed);
     std::uniform_real_distribution<> x_dist(map->getOriginX(), 
@@ -277,8 +216,8 @@ private:
                                             map->getOriginY() + map->getHeight() * map->getResolution());
     std::uniform_real_distribution<> angle_dist(0, 2 * M_PI);
     
-    const int beams_per_scan = 720; // 720本のレーザービーム
-    const double max_range = 10.0; // 10メートル
+    const int beams_per_scan = 720;
+    const double max_range = 10.0;
     
     // 測定開始
     auto start = std::chrono::high_resolution_clock::now();
@@ -306,7 +245,7 @@ private:
                 beams_per_scan, avg_scan_time_us);
   }
 
-  void runFullMapScanBenchmark(SimplifiedCompressedMap* map)
+  void runFullMapScanBenchmark(OrdinaryOccupancyMap* map)
   {
     uint32_t width = map->getWidth();
     uint32_t height = map->getHeight();
@@ -340,7 +279,7 @@ private:
   }
 
   // メンバ変数
-  rclcpp::Subscription<binary_image_compressor::msg::CompressedBinaryImage>::SharedPtr compressed_image_sub_;
+  rclcpp::Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr map_sub_;
   rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr benchmark_result_pub_;
 };
 
@@ -349,7 +288,7 @@ private:
 int main(int argc, char* argv[])
 {
   rclcpp::init(argc, argv);
-  auto node = std::make_shared<compressor::CompressedMapBenchmark>();
+  auto node = std::make_shared<compressor::OrdinaryMapBenchmark>();
   rclcpp::spin(node);
   rclcpp::shutdown();
   return 0;
