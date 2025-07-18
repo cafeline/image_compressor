@@ -149,10 +149,21 @@ namespace compressor
     }
 
     // パターンのエンコード
-    if (!patternEncoder->encodePatterns(patternDataPath, dictionaryPath, indexDataPath, totalBlocks, patternBytes, use8bitIndices))
+    if (use8bitIndices)
     {
-      std::cerr << "パターンエンコードに失敗しました" << std::endl;
-      return false;
+      if (!patternEncoder->encodePatterns8bit(patternDataPath, dictionaryPath, indexDataPath, totalBlocks, patternBytes))
+      {
+        std::cerr << "パターンエンコードに失敗しました" << std::endl;
+        return false;
+      }
+    }
+    else
+    {
+      if (!patternEncoder->encodePatterns(patternDataPath, dictionaryPath, indexDataPath, totalBlocks, patternBytes))
+      {
+        std::cerr << "パターンエンコードに失敗しました" << std::endl;
+        return false;
+      }
     }
 
     // 圧縮情報の表示

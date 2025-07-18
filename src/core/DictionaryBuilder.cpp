@@ -48,7 +48,6 @@ namespace compressor
       {
         if (pattern.equals(blockData))
         {
-          pattern.frequency++;
           found = true;
           break;
         }
@@ -57,22 +56,13 @@ namespace compressor
       // 新しいパターンを追加
       if (!found)
       {
-        patterns.emplace_back(blockData, patternBits);
+        patterns.emplace_back(blockData);
       }
     }
-
-    // パターンを出現頻度で並べ替え（オプション）
-    std::sort(patterns.begin(), patterns.end(),
-              [](const BinaryPattern &a, const BinaryPattern &b)
-              {
-                return a.frequency > b.frequency;
-              });
 
     // 辞書ファイルにパターンを書き込む
     for (const auto &pattern : patterns)
     {
-      dictFile.write(reinterpret_cast<const char *>(&pattern.bitLength), sizeof(int));
-      dictFile.write(reinterpret_cast<const char *>(&pattern.frequency), sizeof(int));
       dictFile.write(reinterpret_cast<const char *>(pattern.pattern.data()), pattern.pattern.size());
     }
 
@@ -110,10 +100,6 @@ namespace compressor
     // 各パターンを読み込む
     for (int i = 0; i < patternCount; ++i)
     {
-      int bitLength, frequency;
-      dictFile.read(reinterpret_cast<char *>(&bitLength), sizeof(int));
-      dictFile.read(reinterpret_cast<char *>(&frequency), sizeof(int));
-
       std::vector<uint8_t> patternData(patternBytes);
       dictFile.read(reinterpret_cast<char *>(patternData.data()), patternBytes);
 
@@ -123,7 +109,7 @@ namespace compressor
         return false;
       }
 
-      patterns.emplace_back(patternData, bitLength, frequency);
+      patterns.emplace_back(patternData);
     }
 
     dictFile.close();

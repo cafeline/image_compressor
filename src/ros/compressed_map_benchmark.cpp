@@ -279,31 +279,44 @@ private:
     
     const int beams_per_scan = 720; // 720本のレーザービーム
     const double max_range = 10.0; // 10メートル
+    const int num_tests = 1000; // 統計的信頼性のために1000回テスト
     
-    // 測定開始
-    auto start = std::chrono::high_resolution_clock::now();
+    std::vector<double> scan_times;
+    scan_times.reserve(num_tests);
     
-    int scans = iterations / beams_per_scan;
-    for (int scan = 0; scan < scans; ++scan) {
+    // 1000回のスキャンテスト
+    for (int test = 0; test < num_tests; ++test) {
       double robot_x = x_dist(gen);
       double robot_y = y_dist(gen);
       double robot_angle = angle_dist(gen);
       
+      // 1スキャンの測定開始
+      auto start = std::chrono::high_resolution_clock::now();
+      
+      // 1スキャン分の720ビームを処理
       for (int beam = 0; beam < beams_per_scan; ++beam) {
         double angle = robot_angle + (beam * 2 * M_PI / beams_per_scan);
         double end_x = robot_x + max_range * std::cos(angle);
         double end_y = robot_y + max_range * std::sin(angle);
         map->getValue(end_x, end_y);
       }
+      
+      auto end = std::chrono::high_resolution_clock::now();
+      auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
+      scan_times.push_back(duration.count() / 1000.0); // マイクロ秒に変換
     }
     
-    auto end = std::chrono::high_resolution_clock::now();
-    auto duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start);
+    // 統計計算
+    double total_time = 0.0;
+    for (double time : scan_times) {
+      total_time += time;
+    }
+    double avg_scan_time_us = total_time / num_tests;
+    double avg_beam_time_ns = (avg_scan_time_us * 1000.0) / beams_per_scan;
     
-    double avg_scan_time_us = static_cast<double>(duration.count()) / scans;
-    
-    RCLCPP_INFO(get_logger(), "LiDAR模擬 (%dビーム/スキャン): 平均 %.2f μs/スキャン", 
-                beams_per_scan, avg_scan_time_us);
+    RCLCPP_INFO(get_logger(), "LiDAR模擬 (%dビーム/スキャン、%d回テスト): 平均 %.2f μs/スキャン", 
+                beams_per_scan, num_tests, avg_scan_time_us);
+    RCLCPP_INFO(get_logger(), "1ビームあたり: 平均 %.2f ns", avg_beam_time_ns);
   }
 
   void runFullMapScanBenchmark(SimplifiedCompressedMap* map)

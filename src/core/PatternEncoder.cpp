@@ -57,14 +57,7 @@ namespace compressor
     std::vector<BinaryPattern> patterns(patternCount);
     for (int i = 0; i < patternCount; ++i)
     {
-      int bitLength, frequency;
-      dictFile.read(reinterpret_cast<char *>(&bitLength), sizeof(int));
-      dictFile.read(reinterpret_cast<char *>(&frequency), sizeof(int));
-
-      patterns[i].bitLength = bitLength;
-      patterns[i].frequency = frequency;
       patterns[i].pattern.resize(patternBytes);
-
       dictFile.read(reinterpret_cast<char *>(patterns[i].pattern.data()), patternBytes);
     }
 
@@ -153,10 +146,6 @@ namespace compressor
     patterns.resize(patternCount);
     for (uint16_t i = 0; i < patternCount; ++i)
     {
-      int bitLength, frequency;
-      dictFile.read(reinterpret_cast<char *>(&bitLength), sizeof(int));
-      dictFile.read(reinterpret_cast<char *>(&frequency), sizeof(int));
-
       patterns[i].resize(patternBytes);
       dictFile.read(reinterpret_cast<char *>(patterns[i].data()), patternBytes);
 

@@ -4,15 +4,11 @@
 namespace compressor
 {
 
-  BinaryPattern::BinaryPattern(int size) : pattern(std::vector<uint8_t>((size + 7) / 8, 0)),
-                                           bitLength(size),
-                                           frequency(0)
+  BinaryPattern::BinaryPattern(int size) : pattern(std::vector<uint8_t>((size + 7) / 8, 0))
   {
   }
 
-  BinaryPattern::BinaryPattern(const std::vector<uint8_t> &data, int length, int freq) : pattern(data),
-                                                                                         bitLength(length),
-                                                                                         frequency(freq)
+  BinaryPattern::BinaryPattern(const std::vector<uint8_t> &data) : pattern(data)
   {
   }
 

@@ -10,11 +10,9 @@ namespace compressor {
 class BinaryPattern {
 public:
     std::vector<uint8_t> pattern; // パターンデータ（ビット配列）
-    int bitLength;                // パターンのビット長
-    int frequency;                // 出現頻度
 
     BinaryPattern(int size = 64);
-    BinaryPattern(const std::vector<uint8_t> &data, int length, int freq = 1);
+    BinaryPattern(const std::vector<uint8_t> &data);
 
     // パターン比較メソッド
     bool equals(const std::vector<uint8_t>& other) const;
