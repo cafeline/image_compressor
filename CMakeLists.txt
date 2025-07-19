@@ -76,32 +76,6 @@ target_link_libraries(compressed_image_viewer
   "${cpp_typesupport_target}"
 )
 
-# compressed_map_benchmarkノードを追加
-ament_auto_add_executable(compressed_map_benchmark
-  src/ros/compressed_map_benchmark.cpp
-)
-target_link_libraries(compressed_map_benchmark
-  "${cpp_typesupport_target}"
-)
-ament_target_dependencies(compressed_map_benchmark
-  rclcpp
-  nav_msgs
-  std_msgs
-)
-
-# ordinary_map_benchmarkノードを追加
-ament_auto_add_executable(ordinary_map_benchmark
-  src/ros/ordinary_map_benchmark.cpp
-)
-target_link_libraries(ordinary_map_benchmark
-  "${cpp_typesupport_target}"
-)
-ament_target_dependencies(ordinary_map_benchmark
-  rclcpp
-  nav_msgs
-  std_msgs
-)
-
 # 設定ファイルとLaunchファイルのインストール
 install(DIRECTORY
   config
